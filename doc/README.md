@@ -1,5 +1,7 @@
 # E-Commerce Microservices Platform
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/jayantha-nayak/ECommerce-Microservices-Docker-Site)
+
 An enterprise-grade, event-driven e-commerce platform built with **FastAPI**, **PostgreSQL 16**, **Redis 7.2**, **Docker**, **Kubernetes**, and **Razorpay**. All services are decoupled behind a unified API Gateway with JWT-based authentication, network-isolated databases, pessimistic row locking, and an encapsulated customer storefront.
 
 ---

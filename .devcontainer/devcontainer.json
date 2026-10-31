@@ -1,0 +1,53 @@
+{
+  "name": "E-Commerce Microservices",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": "true"
+    }
+  },
+  "forwardPorts": [8000, 8001, 8002, 8003, 8004, 8005],
+  "portsAttributes": {
+    "8000": {
+      "label": "Storefront & API Gateway",
+      "onAutoForward": "openPreview",
+      "elevateIfNeeded": true
+    },
+    "8001": {
+      "label": "User Auth Service",
+      "onAutoForward": "silent"
+    },
+    "8002": {
+      "label": "Product Service",
+      "onAutoForward": "silent"
+    },
+    "8003": {
+      "label": "Payment Service",
+      "onAutoForward": "silent"
+    },
+    "8004": {
+      "label": "Order Service",
+      "onAutoForward": "silent"
+    },
+    "8005": {
+      "label": "Cart Service",
+      "onAutoForward": "silent"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/on-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "remoteUser": "vscode"
+}
