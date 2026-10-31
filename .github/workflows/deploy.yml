@@ -1,0 +1,97 @@
+name: E-Commerce Microservices CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test-and-verify:
+    name: Run Microservices Tests & Health Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Test Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests psycopg2-binary redis pytest httpx pydantic
+
+      - name: Build and Start Containers with Docker Compose
+        run: |
+          docker compose up -d --build
+          echo "Waiting 25 seconds for microservices and databases to become healthy..."
+          sleep 25
+          docker compose ps
+
+      - name: Execute Full Integration Test Suite
+        run: |
+          bash scripts/test_all.sh
+
+      - name: Shut Down Containers
+        if: always()
+        run: |
+          docker compose down -v
+
+  build-and-push-images:
+    name: Build & Publish Container Images to GitHub Container Registry (GHCR)
+    needs: test-and-verify
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: api-gateway
+            dir: services/api-gateway
+          - name: user-auth-service
+            dir: services/auth-service
+          - name: product-service
+            dir: services/product-service
+          - name: order-service
+            dir: services/order-service
+          - name: payment-service
+            dir: services/payment-service
+          - name: cart-service
+            dir: services/cart-service
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service.dir }}
+          file: ./${{ matrix.service.dir }}/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.name }}:latest
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.service.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

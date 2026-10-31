@@ -61,9 +61,11 @@ services:
     build: { context: ./services/product-service }
     environment:
       DATABASE_URL: postgresql+psycopg2://product_user:${PRODUCT_DB_PASSWORD}@product-db:5432/product_db
+      REDIS_URL: redis://redis:6379/0
     expose: ["8002"]
     depends_on:
       product-db: { condition: service_healthy }
+      redis: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=3)"]
       interval: 10s
@@ -182,6 +184,7 @@ services:
       ORDER_SERVICE_URL: http://order-service:8004
       PRODUCT_TIMEOUT_SECONDS: "5"
       ORDER_TIMEOUT_SECONDS: "15"
+      REDIS_URL: redis://redis:6379/0
     expose: ["8005"]
     depends_on:
       cart-db: { condition: service_healthy }
@@ -198,8 +201,25 @@ services:
       - internal-network
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    expose: ["6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+    networks:
+      - internal-network
+    restart: unless-stopped
+
   api-gateway:
     build: { context: ./services/api-gateway }
+    volumes:
+      - ./services/api-gateway:/app
+      - ./doc:/doc:ro
     environment:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env (at least 32 characters)}
       USER_AUTH_URL: http://user-auth-service:8001
