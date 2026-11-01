@@ -109,6 +109,8 @@ def root(request: Request):
             "cart": "/cart",
             "orders": "/orders",
             "payments": "/payments",
+            "support": "/support",
+            "privacy": "/privacy",
         },
     })
 
@@ -256,6 +258,139 @@ def support_document():
 </body>
 </html>"""
     return HTMLResponse(content=support_html)
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_document():
+    """Comprehensive Privacy Policy, Security Controls & Data Sovereignty Document."""
+    import os
+    doc_paths = [
+        "/app/../../doc/PRIVACY.md",
+        "doc/PRIVACY.md",
+        "../doc/PRIVACY.md",
+        "/doc/PRIVACY.md",
+    ]
+    doc_content = ""
+    for path in doc_paths:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                doc_content = f.read()
+            break
+
+    if not doc_content:
+        doc_content = "# Platform Privacy & Security Policy\n\nAll customer data is encrypted and managed with security-by-design principles."
+
+    escaped_md = (
+        doc_content.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+    privacy_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy & Security Controls — Jay's Microservices</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {{
+      --bg: #002244;
+      --card-bg: rgba(6, 12, 24, 0.9);
+      --card-border: rgba(0, 212, 255, 0.35);
+      --text: #ffffff;
+      --text-muted: #99ccff;
+      --primary: #00d4ff;
+    }}
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      background: radial-gradient(circle at 10% 10%, #0052cc 0%, transparent 45%),
+                  radial-gradient(circle at 90% 20%, #0033aa 0%, transparent 40%),
+                  linear-gradient(180deg, #001f3f 0%, #002b5c 40%, #001a35 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 2.5rem 1.5rem;
+    }}
+    .doc-container {{
+      max-width: 960px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border: 1.5px solid var(--card-border);
+      border-radius: 18px;
+      padding: 2.5rem;
+      box-shadow: 0 16px 45px rgba(0, 212, 255, 0.25);
+      backdrop-filter: blur(20px);
+    }}
+    .back-btn {{
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #00d4ff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+      transition: transform 0.2s;
+    }}
+    .back-btn:hover {{ transform: translateX(-4px); }}
+    .doc-content {{
+      white-space: pre-wrap;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      color: #e0f2fe;
+      background: rgba(0, 15, 35, 0.65);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      overflow-x: auto;
+    }}
+    .doc-header {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }}
+    .contact-badge {{
+      background: rgba(0, 255, 170, 0.12);
+      border: 1px solid rgba(0, 255, 170, 0.35);
+      color: #00ffaa;
+      padding: 0.4rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }}
+  </style>
+</head>
+<body>
+  <div class="doc-container">
+    <a href="/" class="back-btn">← Return to Storefront</a>
+    <div class="doc-header">
+      <div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: #ffffff; margin-bottom: 0.35rem;">
+          🛡️ Platform Privacy & Security Policy
+        </h1>
+        <p style="color: #99ccff; font-size: 0.9rem;">
+          Cryptographic password hashing (scrypt), zero PCI-DSS exposure, database-per-service isolation, and customer rights.
+        </p>
+      </div>
+      <div class="contact-badge">
+        DPO & Lead: Jay • 24/7 Verified
+      </div>
+    </div>
+    <div class="doc-content">{escaped_md}</div>
+  </div>
+</body>
+</html>"""
+    return HTMLResponse(content=privacy_html)
+
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])

@@ -1003,6 +1003,12 @@ PORTAL_HTML = """<!DOCTYPE html>
 
       <!-- Action Buttons -->
       <div class="header-actions">
+        <!-- Developer Admin Console Quick Button (Always accessible for rapid developer testing) -->
+        <button class="nav-btn" id="headerDevAdminBtn" onclick="openAdminAuthModal()" title="Developer Admin Console (1-Click Login)" style="border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; font-weight: 700; background: rgba(245, 158, 11, 0.08);">
+          <span>⚡</span>
+          <span>Dev Admin</span>
+        </button>
+
         <!-- Hidden Admin Indicator (Rendered ONLY when administrative access is unlocked) -->
         <button class="nav-btn" id="adminSessionBtn" style="display: none; background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #f59e0b;" onclick="lockAndExitAdmin()">
           <span>🔒</span>
@@ -1359,6 +1365,14 @@ PORTAL_HTML = """<!DOCTYPE html>
           ✏️ Edit Profile
         </button>
         <div style="display: flex; gap: 0.6rem;">
+          <button class="nav-btn" onclick="closeAccountModal(); openPrivacyModal();" style="flex: 1; justify-content: center; border-color: rgba(0, 240, 255, 0.4); color: #00d4ff;">
+            🛡️ Privacy & Security
+          </button>
+          <button class="nav-btn" onclick="closeAccountModal(); openAdminAuthModal();" style="flex: 1; justify-content: center; border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+            ⚡ Dev Admin
+          </button>
+        </div>
+        <div style="display: flex; gap: 0.6rem;">
           <button class="nav-btn" onclick="closeAccountModal(); openOrdersModal();" style="flex: 1; justify-content: center;">
             📦 Order History
           </button>
@@ -1484,20 +1498,105 @@ PORTAL_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- Hidden Admin Gate Modal (Activated via Secret Hotkey: Ctrl+Shift+A or 5x Logo Click) -->
+  <!-- Developer Admin Gate Modal (Activated via '⚡ Dev Admin' Navbar Button or Hotkey) -->
   <div class="modal-overlay" id="adminAuthModal" onclick="closeModalOnBg(event)">
-    <div class="modal-box" style="max-width: 420px; text-align: center;">
+    <div class="modal-box" style="max-width: 440px; text-align: center;">
       <button class="modal-close" onclick="closeAdminAuthModal()">&times;</button>
-      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔒</div>
-      <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 0.3rem;">Restricted Admin Console</h2>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">Enterprise system controls are restricted. Enter authorization password to unlock:</p>
+      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⚡</div>
+      <h2 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 0.3rem;">Developer Admin Console</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Direct access to catalog inventory control, stock adjustments, and administrative oversight.</p>
+      
+      <!-- Developer 1-Click Fast Bypass -->
+      <div style="background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.45); border-radius: 10px; padding: 0.85rem; margin-bottom: 1.25rem; text-align: left;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+          <span style="font-size: 0.75rem; font-weight: 800; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.04em;">⚡ Fast Developer Login</span>
+          <span style="font-size: 0.68rem; background: rgba(245, 158, 11, 0.25); color: #fbbf24; padding: 0.1rem 0.45rem; border-radius: 4px; font-weight: 800;">DEV MODE</span>
+        </div>
+        <p style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 0.65rem;">Instantly authenticates as <code style="color: #fbbf24; background: rgba(0,0,0,0.3); padding: 0.1rem 0.3rem; border-radius: 4px;">admin@example.com</code> with one click:</p>
+        <button type="button" class="checkout-btn" onclick="quickDevAdminLogin()" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; font-weight: 800; font-size: 0.85rem; padding: 0.6rem; width: 100%; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);">
+          ⚡ 1-Click Auto-Unlock Admin Mode
+        </button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin: 1rem 0; color: var(--text-muted); font-size: 0.75rem;">
+        <div style="flex: 1; height: 1px; background: var(--card-border);"></div>
+        <span>OR ENTER MANUAL PASSWORD</span>
+        <div style="flex: 1; height: 1px; background: var(--card-border);"></div>
+      </div>
+
       <form onsubmit="unlockAdminWithPassword(event)">
         <input type="password" id="adminPasswordInput" placeholder="Enter Admin Secret / Password" required style="width: 100%; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--card-border); background: var(--input-bg); color: var(--text); font-family: var(--font-mono); font-size: 0.9rem; margin-bottom: 1rem;">
-        <button type="submit" class="checkout-btn" id="btnUnlockAdmin" style="background: #f59e0b; color: #000; font-weight: 800;">
-          ⚡ Authenticate & Unlock
+        <button type="submit" class="checkout-btn" id="btnUnlockAdmin" style="background: #3b82f6; color: #ffffff; font-weight: 800;">
+          Authenticate with Password
         </button>
       </form>
       <div id="adminAuthError" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.75rem; display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Customer Privacy & Data Protection Modal -->
+  <div class="modal-overlay" id="privacyModal" onclick="closeModalOnBg(event)">
+    <div class="modal-box" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column; text-align: left;">
+      <button class="modal-close" onclick="closePrivacyModal()">&times;</button>
+      <div class="modal-header" style="border-bottom: 1px solid var(--card-border); padding-bottom: 0.85rem; margin-bottom: 1rem;">
+        <h2 style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.3rem;">
+          <span>🛡️</span>
+          <span>Privacy & Security Center</span>
+        </h2>
+        <p style="font-size: 0.825rem; color: var(--text-muted); margin-top: 0.25rem;">
+          Transparent overview of how your data is protected, encrypted, and isolated.
+        </p>
+      </div>
+
+      <div style="overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 0.85rem; padding-right: 0.25rem;">
+        <div style="background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: 10px; padding: 0.9rem;">
+          <div style="font-weight: 800; color: #00f0ff; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+            <span>🔒</span> Password & Account Encryption (scrypt)
+          </div>
+          <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.45;">
+            Passwords are never stored in plaintext. We utilize CPU and memory-hard <code>scrypt</code> key derivation with random 16-byte salts, rendering rainbow-table lookups computationally impossible.
+          </p>
+        </div>
+
+        <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 10px; padding: 0.9rem;">
+          <div style="font-weight: 800; color: #10b981; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+            <span>💳</span> Zero Financial Exposure (Zero PCI-DSS Footprint)
+          </div>
+          <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.45;">
+            We do not receive, store, or log credit card numbers, CVVs, or UPI PINs. Monetary transactions are processed through Razorpay's certified gateway and verified cryptographically via HMAC-SHA256 digests.
+          </p>
+        </div>
+
+        <div style="background: rgba(139, 92, 246, 0.05); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 10px; padding: 0.9rem;">
+          <div style="font-weight: 800; color: #c084fc; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+            <span>🧱</span> Database-per-Service Network Isolation
+          </div>
+          <p style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.45;">
+            Every microservice possesses its own isolated PostgreSQL 16 database. Databases are sequestered on internal network subnets and are completely inaccessible from the public internet.
+          </p>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 10px; padding: 0.9rem;">
+          <div style="font-weight: 800; color: #fbbf24; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
+            <span>👤</span> Your Customer Privacy Sovereignty
+          </div>
+          <ul style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.5; margin-left: 1.25rem; margin-top: 0.3rem;">
+            <li><strong>Edit Profile:</strong> Update your address, name, and contact details anytime.</li>
+            <li><strong>Right to Cancel:</strong> Free cancellation up to 6 hours before courier arrival.</li>
+            <li><strong>Data Deletion:</strong> Full account erasure upon request.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid var(--card-border); padding-top: 0.85rem; margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <a href="/privacy" target="_blank" style="color: #00d4ff; font-size: 0.82rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 0.3rem;">
+          <span>📖</span>
+          <span>View Full Legal & Security Document ↗</span>
+        </a>
+        <button class="nav-btn" onclick="closePrivacyModal()" style="font-weight: 700;">
+          Close
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1803,13 +1902,19 @@ PORTAL_HTML = """<!DOCTYPE html>
   <footer>
     <div class="footer-inner">
       <div><strong>E-Commerce Site</strong> • Built & Maintained by Jay • © 2026. All rights reserved.</div>
-      <div style="display: flex; gap: 1.5rem; align-items: center;">
+      <div style="display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap;">
         <span style="color: #00ffaa; font-weight: 600;">🛡️ 256-Bit SSL Encrypted</span>
+        <a href="javascript:void(0)" onclick="openPrivacyModal()" style="color: #7dd3fc; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem;">
+          <span>🛡️</span>
+          <span>Privacy Options</span>
+        </a>
+        <a href="/privacy" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+          Legal & Privacy ↗
+        </a>
         <a href="/support" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.8rem; border: 1px solid rgba(0, 240, 255, 0.35); border-radius: 6px; background: rgba(0, 240, 255, 0.08); transition: all 0.2s;">
           <span>📖</span>
-          <span>Support & Documentation ↗</span>
+          <span>Support & Docs ↗</span>
         </a>
-        <a href="#privacy" onclick="alert('Privacy Guarantee: All user data is encrypted and managed securely.')" style="color: #7dd3fc; text-decoration: none;">Privacy</a>
       </div>
     </div>
   </footer>
@@ -1870,6 +1975,21 @@ PORTAL_HTML = """<!DOCTYPE html>
 
     function closeAdminAuthModal() {
       document.getElementById('adminAuthModal').classList.remove('active');
+    }
+
+    async function quickDevAdminLogin() {
+      const pwdInput = document.getElementById('adminPasswordInput');
+      pwdInput.value = 'AdminPassword123!';
+      const fakeEvt = { preventDefault: () => {} };
+      await unlockAdminWithPassword(fakeEvt);
+    }
+
+    function openPrivacyModal() {
+      document.getElementById('privacyModal').classList.add('active');
+    }
+
+    function closePrivacyModal() {
+      document.getElementById('privacyModal').classList.remove('active');
     }
 
     async function unlockAdminWithPassword(e) {
