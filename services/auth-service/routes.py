@@ -52,8 +52,8 @@ def register(data: RegisterIn, db: Session = Depends(get_db)) -> dict:
         email=normalized_email,
         password_hash=hash_password(data.password),
         role="CUSTOMER",
-        verified=False,
-        status="PENDING",
+        verified=True,
+        status="ACTIVE",
         created_at=current,
     )
     user.profile = UserProfile(name=data.name.strip(), email=normalized_email)
@@ -61,7 +61,7 @@ def register(data: RegisterIn, db: Session = Depends(get_db)) -> dict:
         VerificationCode(
             code_hash=hash_verification_code(code),
             expires_at=current + timedelta(hours=24),
-            used=False,
+            used=True,
             created_at=current,
         )
     )
@@ -75,7 +75,7 @@ def register(data: RegisterIn, db: Session = Depends(get_db)) -> dict:
         raise HTTPException(status_code=409, detail="An account with this email already exists") from exc
 
     result = {
-        "message": "Account created. Verify the email address before logging in.",
+        "message": "Account created successfully.",
         "user": {**user_public(user), "createdAt": user.created_at.isoformat()},
     }
 
@@ -87,30 +87,13 @@ def register(data: RegisterIn, db: Session = Depends(get_db)) -> dict:
 
 @router.post("/auth/verify-email")
 def verify_email(data: VerifyEmailIn, db: Session = Depends(get_db)) -> dict:
-    """Verify an account using the one-time code sent upon registration."""
+    """Verify an account (accounts are active immediately upon registration)."""
     user = db.scalar(select(User).where(User.email == str(data.email).lower()))
     if not user:
         raise HTTPException(status_code=400, detail="Invalid verification details")
 
-    code_row = db.scalar(
-        select(VerificationCode)
-        .where(VerificationCode.user_id == user.id)
-        .order_by(VerificationCode.created_at.desc())
-        .limit(1)
-    )
-
-    if not code_row or code_row.used or not hmac.compare_digest(code_row.code_hash, hash_verification_code(data.code)):
-        raise HTTPException(status_code=400, detail="Invalid or already-used verification code")
-
-    expiry = code_row.expires_at
-    if expiry.tzinfo is None:
-        expiry = expiry.replace(tzinfo=timezone.utc)
-    if expiry < now():
-        raise HTTPException(status_code=400, detail="Verification code expired")
-
     user.verified = True
     user.status = "ACTIVE"
-    code_row.used = True
     db.commit()
 
     return {"message": "Email verified successfully"}
@@ -148,8 +131,8 @@ def login(
     if not user or not password_ok:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    if not user.verified or user.status != "ACTIVE":
-        raise HTTPException(status_code=403, detail="Account must be verified and active before login")
+    if user.status == "SUSPENDED":
+        raise HTTPException(status_code=403, detail="Account is suspended")
 
     return {
         "message": "Login successful",

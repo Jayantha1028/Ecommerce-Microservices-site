@@ -1112,7 +1112,7 @@ PORTAL_HTML = """<!DOCTYPE html>
             <input type="password" id="regConfirmPasswordInput" class="form-input" placeholder="Re-enter password" minlength="8" required autocomplete="new-password">
           </div>
           <button type="submit" class="checkout-btn" id="btnRegisterSubmit" style="background: #10b981; font-weight: 700;">
-            🚀 Create & Verify Account
+            🚀 Create Account
           </button>
         </form>
 
@@ -1875,22 +1875,7 @@ PORTAL_HTML = """<!DOCTYPE html>
           throw new Error(regData.detail || 'Registration failed');
         }
 
-        // Step 2: Auto-verify email with verification code if provided
-        const code = regData.verificationCode;
-        if (code) {
-          btn.textContent = 'Verifying account...';
-          const verifyRes = await fetch('/auth/verify-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code })
-          });
-          const verifyData = await verifyRes.json();
-          if (!verifyRes.ok) {
-            throw new Error(verifyData.detail || 'Email verification failed');
-          }
-        }
-
-        // Step 3: Automatically log in
+        // Step 2: Automatically log in immediately (instant verification)
         btn.textContent = 'Logging in...';
         const loginRes = await fetch('/auth/login', {
           method: 'POST',
@@ -1921,7 +1906,7 @@ PORTAL_HTML = """<!DOCTYPE html>
         errDiv.style.display = 'block';
       } finally {
         btn.disabled = false;
-        btn.textContent = '🚀 Create & Verify Account';
+        btn.textContent = '🚀 Create Account';
       }
     }
 
