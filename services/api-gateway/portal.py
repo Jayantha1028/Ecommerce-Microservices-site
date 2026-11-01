@@ -1635,10 +1635,15 @@ PORTAL_HTML = """<!DOCTYPE html>
 
     let allProducts = [];
     let currentCategory = 'ALL';
+    let currentPriceFilter = 'ALL';
+    let currentSort = 'featured';
     let currentRole = 'CUSTOMER'; // 'CUSTOMER' or 'ADMIN'
     let customerToken = localStorage.getItem('novatech_token') || null;
     let currentUserEmail = localStorage.getItem('novatech_email') || null;
     let adminToken = null;
+    let wishlist = JSON.parse(localStorage.getItem('ecom_wishlist') || '[]');
+    let appliedCoupon = JSON.parse(localStorage.getItem('ecom_coupon') || 'null');
+    let productReviews = JSON.parse(localStorage.getItem('ecom_product_reviews') || 'null');
 
     // Brand Logo Easter Egg: 5 rapid clicks triggers the hidden admin gate
     let logoClicks = 0;
@@ -2975,7 +2980,7 @@ PORTAL_HTML = """<!DOCTYPE html>
     // =========================================================================
 
     // 1. Wishlist State & Handlers
-    let wishlist = JSON.parse(localStorage.getItem('ecom_wishlist') || '[]');
+    wishlist = wishlist || [];
 
     function updateWishlistBadge() {
       const badge = document.getElementById('wishlistBadge');
@@ -3042,7 +3047,6 @@ PORTAL_HTML = """<!DOCTYPE html>
     }
 
     // 2. Product Reviews State & Handlers
-    let productReviews = JSON.parse(localStorage.getItem('ecom_product_reviews') || 'null');
     if (!productReviews) {
       productReviews = {
         'LAPTOP-001': [
@@ -3114,8 +3118,6 @@ PORTAL_HTML = """<!DOCTYPE html>
     }
 
     // 3. Promotional Coupon / Discount Engine
-    let appliedCoupon = JSON.parse(localStorage.getItem('ecom_coupon') || 'null');
-
     const VALID_COUPONS = {
       'SAVE10': { code: 'SAVE10', type: 'percent', value: 10, description: '10% discount applied to your order!' },
       'FESTIVE20': { code: 'FESTIVE20', type: 'percent', value: 20, description: '20% festive discount applied!' },
@@ -3174,10 +3176,6 @@ PORTAL_HTML = """<!DOCTYPE html>
     }
 
     // 4. Advanced Filter & Sorting Logic
-    let currentCategory = 'ALL';
-    let currentPriceFilter = 'ALL';
-    let currentSort = 'featured';
-
     function setPriceFilter(filter, btn) {
       currentPriceFilter = filter;
       document.querySelectorAll('.price-pill').forEach(b => b.classList.remove('active'));
