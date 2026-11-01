@@ -136,6 +136,8 @@ services:
 
   order-service:
     build: { context: ./services/order-service }
+    volumes:
+      - ./services/order-service:/app
     environment:
       PORT: "8004"
       DATABASE_URL: postgresql+psycopg2://order_user:${ORDER_DB_PASSWORD}@order-db:5432/order_db

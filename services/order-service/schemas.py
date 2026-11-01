@@ -39,6 +39,11 @@ class CancelInput(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=500)
 
 
+class StatusUpdateIn(BaseModel):
+    """Payload for updating order tracking / shipment status."""
+    status: str = Field(min_length=3, max_length=30)
+
+
 def order_payload(order: Order, include_payment: bool = True) -> dict:
     """Serialize an Order and its line items into a standard response dictionary."""
     now_utc = datetime.now(timezone.utc)

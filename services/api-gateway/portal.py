@@ -575,9 +575,6 @@ PORTAL_HTML = """<!DOCTYPE html>
       transform: translateY(-2px);
       filter: brightness(1.1);
     }
-      transform: translateY(-1px);
-      filter: brightness(1.08);
-    }
     .add-btn:active {
       transform: scale(0.97);
     }
@@ -790,6 +787,202 @@ PORTAL_HTML = """<!DOCTYPE html>
       flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--text-muted);
     }
     .footer-inner a { color: var(--primary); text-decoration: none; margin-left: 1rem; font-weight: 600; }
+
+    /* Order Lifecycle Tracker & Live Stepper Styles */
+    .order-tracker-card {
+      background: rgba(10, 20, 38, 0.75);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 12px;
+      padding: 1.15rem;
+      margin-top: 0.95rem;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+    .order-tracker-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, #00d4ff, #8b5cf6, #10b981);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+    }
+    .tracker-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.9rem;
+    }
+    .tracker-badge-carrier {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      color: #00f0ff;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+    }
+    .tracker-stepper {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      position: relative;
+      margin: 1.5rem 0 1.25rem 0;
+      padding: 0 0.25rem;
+    }
+    .tracker-line-bg {
+      position: absolute;
+      top: 18px;
+      left: 28px;
+      right: 28px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 2px;
+      z-index: 1;
+    }
+    .tracker-line-fill {
+      position: absolute;
+      top: 18px;
+      left: 28px;
+      height: 4px;
+      background: linear-gradient(90deg, #00f0ff, #10b981);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+      border-radius: 2px;
+      z-index: 2;
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tracker-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 3;
+      text-align: center;
+      flex: 1;
+    }
+    .tracker-circle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 800;
+      background: #081226;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-muted);
+      transition: all 0.35s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+    .tracker-step.completed .tracker-circle {
+      background: #059669;
+      border-color: #10b981;
+      color: #ffffff;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.55);
+    }
+    .tracker-step.active .tracker-circle {
+      background: #00d4ff;
+      border-color: #00f0ff;
+      color: #030a1a;
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.9);
+      animation: trackerPulseGlow 1.8s infinite;
+    }
+    @keyframes trackerPulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); }
+      70% { box-shadow: 0 0 0 12px rgba(0, 240, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 240, 255, 0); }
+    }
+    .tracker-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-top: 0.45rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      line-height: 1.25;
+      max-width: 80px;
+    }
+    .tracker-step.completed .tracker-label {
+      color: #10b981;
+    }
+    .tracker-step.active .tracker-label {
+      color: #00f0ff;
+      font-weight: 800;
+      text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    }
+    .carrier-details-box {
+      background: rgba(0, 240, 255, 0.04);
+      border: 1px dashed rgba(0, 240, 255, 0.3);
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.85rem;
+      font-size: 0.8rem;
+    }
+    .tracker-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .sim-ctrl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 0.2s ease;
+    }
+    .sim-ctrl-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.2);
+    }
+    .sim-ctrl-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .tracking-live-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0b1528;
+      border: 1px solid #00f0ff;
+      box-shadow: 0 8px 32px rgba(0, 240, 255, 0.4);
+      color: #ffffff;
+      padding: 0.85rem 1.25rem;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      z-index: 99999;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tracking-live-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -1243,15 +1436,15 @@ PORTAL_HTML = """<!DOCTYPE html>
 
   <!-- Customer Orders Modal -->
   <div class="modal-overlay" id="ordersModal" onclick="closeModalOnBg(event)">
-    <div class="modal-box" style="max-width: 640px; max-height: 85vh; display: flex; flex-direction: column;">
+    <div class="modal-box" style="max-width: 720px; max-height: 88vh; display: flex; flex-direction: column;">
       <button class="modal-close" onclick="closeOrdersModal()">&times;</button>
       <div class="modal-header" style="text-align: left; border-bottom: 1px solid var(--card-border); padding-bottom: 0.85rem; margin-bottom: 1rem;">
         <h2 style="display: flex; align-items: center; gap: 0.5rem; font-size: 1.3rem;">
           <span>📦</span>
-          <span>Order History</span>
+          <span>Order History & Real-Time Tracking</span>
         </h2>
         <p style="font-size: 0.825rem; color: var(--text-muted); margin-top: 0.25rem;">
-          Track your purchases, shipment ETA, and verified payment receipts
+          Track live shipment milestones, simulated BlueDart Air Express journey, and order lifecycle
         </p>
       </div>
 
@@ -2199,6 +2392,144 @@ PORTAL_HTML = """<!DOCTYPE html>
       }
     }
 
+    // Global state for live tracking simulations
+    window.activeSimulations = window.activeSimulations || {};
+    window.currentOrdersCache = window.currentOrdersCache || [];
+
+    const TRACKER_STAGES = [
+      { key: 'PAID', label: 'Confirmed', icon: '💳', hub: 'Bangalore Central Fulfillment Center', desc: 'Order received & payment confirmed via Razorpay' },
+      { key: 'PACKED', label: 'Packed', icon: '📦', hub: 'Automated Sorting Hub - Bay 4', desc: 'Items verified, boxed & sealed with tamper-evident tape' },
+      { key: 'SHIPPED', label: 'Air Cargo', icon: '✈️', hub: 'BlueDart Air Terminal BLR ➔ Local Hub', desc: 'Handed to BlueDart Express cargo flight BD-882' },
+      { key: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🛵', hub: 'Local Hubli-Dharwad Delivery Center', desc: 'Out with courier partner Jay (Van KA-25-E-9021)' },
+      { key: 'DELIVERED', label: 'Delivered', icon: '🎉', hub: 'Customer Destination Doorstep', desc: 'Package delivered & signature verified successfully' }
+    ];
+
+    function getStageIndex(status) {
+      const s = (status || '').toUpperCase();
+      if (s === 'DELIVERED') return 4;
+      if (s === 'OUT_FOR_DELIVERY') return 3;
+      if (s === 'SHIPPED') return 2;
+      if (s === 'PACKED' || s === 'PROCESSING') return 1;
+      return 0; // PAID, CONFIRMED, PAYMENT_PENDING, etc.
+    }
+
+    function showLiveTrackingToast(message, icon = '🚀') {
+      let toast = document.getElementById('trackingLiveToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'trackingLiveToast';
+        toast.className = 'tracking-live-toast';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = `<span style="font-size: 1.3rem;">${icon}</span> <span>${message}</span>`;
+      toast.classList.add('show');
+      clearTimeout(window._trackingToastTimeout);
+      window._trackingToastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3200);
+    }
+
+    async function updateOrderStatus(orderId, status) {
+      const res = await fetch(`/orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${customerToken}`
+        },
+        body: JSON.stringify({ status: status })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || 'Failed to update order status');
+      }
+      return await res.json();
+    }
+
+    async function advanceOrderStage(orderId) {
+      try {
+        const ord = (window.currentOrdersCache || []).find(o => o.id === orderId);
+        const currIdx = ord ? getStageIndex(ord.status) : 0;
+        if (currIdx < 4) {
+          const nextStage = TRACKER_STAGES[currIdx + 1];
+          await updateOrderStatus(orderId, nextStage.key);
+          showLiveTrackingToast(`Order #${orderId.slice(0, 8)} advanced to ${nextStage.label}!`, nextStage.icon);
+          await openOrdersModal();
+        } else {
+          showLiveTrackingToast(`Order #${orderId.slice(0, 8)} is already delivered!`, '🎉');
+        }
+      } catch (err) {
+        showLiveTrackingToast('Failed to advance: ' + err.message, '⚠️');
+      }
+    }
+
+    async function toggleOrderSimulation(orderId) {
+      if (window.activeSimulations[orderId]) {
+        clearInterval(window.activeSimulations[orderId]);
+        delete window.activeSimulations[orderId];
+        showLiveTrackingToast(`Live journey paused for Order #${orderId.slice(0, 8)}`, '⏸️');
+        await openOrdersModal();
+        return;
+      }
+
+      let ord = (window.currentOrdersCache || []).find(o => o.id === orderId);
+      let currIdx = ord ? getStageIndex(ord.status) : 0;
+
+      if (currIdx >= 4) {
+        await updateOrderStatus(orderId, 'PAID');
+        showLiveTrackingToast('Restarting simulation journey from Confirmed stage...', '🔄');
+        await openOrdersModal();
+      }
+
+      showLiveTrackingToast(`Auto-simulating live journey for Order #${orderId.slice(0, 8)}...`, '🚀');
+
+      window.activeSimulations[orderId] = setInterval(async () => {
+        try {
+          const freshOrders = await fetchOrders();
+          window.currentOrdersCache = freshOrders || [];
+          const currentOrd = (window.currentOrdersCache || []).find(o => o.id === orderId);
+          const idx = currentOrd ? getStageIndex(currentOrd.status) : 0;
+
+          if (idx < 4) {
+            const nextStage = TRACKER_STAGES[idx + 1];
+            await updateOrderStatus(orderId, nextStage.key);
+            showLiveTrackingToast(`Order #${orderId.slice(0, 8)} ➔ ${nextStage.label}: ${nextStage.desc}`, nextStage.icon);
+            await openOrdersModal();
+
+            if (idx + 1 >= 4) {
+              clearInterval(window.activeSimulations[orderId]);
+              delete window.activeSimulations[orderId];
+              showLiveTrackingToast(`🎉 Order #${orderId.slice(0, 8)} delivered successfully to customer doorstep!`, '🎉');
+              await openOrdersModal();
+            }
+          } else {
+            clearInterval(window.activeSimulations[orderId]);
+            delete window.activeSimulations[orderId];
+            await openOrdersModal();
+          }
+        } catch (simErr) {
+          clearInterval(window.activeSimulations[orderId]);
+          delete window.activeSimulations[orderId];
+          showLiveTrackingToast('Simulation halted: ' + simErr.message, '⚠️');
+        }
+      }, 2800);
+
+      await openOrdersModal();
+    }
+
+    async function resetOrderStage(orderId) {
+      try {
+        if (window.activeSimulations[orderId]) {
+          clearInterval(window.activeSimulations[orderId]);
+          delete window.activeSimulations[orderId];
+        }
+        await updateOrderStatus(orderId, 'PAID');
+        showLiveTrackingToast(`Order #${orderId.slice(0, 8)} reset to Confirmed stage.`, '🔄');
+        await openOrdersModal();
+      } catch (err) {
+        showLiveTrackingToast('Reset error: ' + err.message, '⚠️');
+      }
+    }
+
     async function openOrdersModal() {
       if (!customerToken) {
         openLoginModal();
@@ -2213,6 +2544,8 @@ PORTAL_HTML = """<!DOCTYPE html>
 
       const allOrders = await fetchOrders();
       const orders = (allOrders || []).filter(ord => ord.status !== 'CANCELLED');
+      window.currentOrdersCache = orders;
+
       if (!orders || orders.length === 0) {
         container.innerHTML = `
           <div style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
@@ -2227,11 +2560,31 @@ PORTAL_HTML = """<!DOCTYPE html>
       const now = Date.now();
       container.innerHTML = orders.map(ord => {
         const dateStr = ord.created_at ? new Date(ord.created_at).toLocaleString() : 'Recent';
-        const isPaid = (ord.status === 'PAID' || ord.status === 'CONFIRMED' || ord.status === 'COMPLETED');
-        const statusBadgeStyle = isPaid 
-          ? 'background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3);' 
-          : 'background: rgba(245, 158, 11, 0.15); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.3);';
-        const statusText = isPaid ? 'PAID (Confirmed)' : ord.status;
+        const stageIdx = getStageIndex(ord.status);
+        const currentStage = TRACKER_STAGES[stageIdx];
+        const progressPct = Math.min(100, Math.max(0, stageIdx * 25));
+        const waybillNo = 'BLUEDART-IND-' + ord.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8).toUpperCase();
+        const isSimulating = !!window.activeSimulations[ord.id];
+
+        let statusBadgeStyle = 'background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3);';
+        let statusText = '● ' + ord.status;
+
+        if (ord.status === 'DELIVERED') {
+          statusBadgeStyle = 'background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); font-weight: 800;';
+          statusText = '● DELIVERED (Completed)';
+        } else if (ord.status === 'OUT_FOR_DELIVERY') {
+          statusBadgeStyle = 'background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); font-weight: 800;';
+          statusText = '● OUT FOR DELIVERY';
+        } else if (ord.status === 'SHIPPED') {
+          statusBadgeStyle = 'background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid #8b5cf6; box-shadow: 0 0 10px rgba(139, 92, 246, 0.4); font-weight: 800;';
+          statusText = '● IN TRANSIT (Air Cargo)';
+        } else if (ord.status === 'PACKED' || ord.status === 'PROCESSING') {
+          statusBadgeStyle = 'background: rgba(0, 240, 255, 0.15); color: #00f0ff; border: 1px solid rgba(0, 240, 255, 0.4); box-shadow: 0 0 10px rgba(0, 240, 255, 0.3); font-weight: 800;';
+          statusText = '● PACKED (In Hub)';
+        } else if (ord.status === 'PAID' || ord.status === 'CONFIRMED' || ord.status === 'COMPLETED') {
+          statusBadgeStyle = 'background: rgba(16, 185, 129, 0.15); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3);';
+          statusText = '● PAID (Confirmed)';
+        }
 
         const itemsHtml = (ord.items || []).map(item => `
           <div style="display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.25rem 0;">
@@ -2255,15 +2608,54 @@ PORTAL_HTML = """<!DOCTYPE html>
         const reachSecs = totalSecReach % 60;
         const reachTimeStr = `${reachHrs}h ${reachMins}m ${reachSecs}s`;
 
+        // Render Stepper Nodes
+        const stepsHtml = TRACKER_STAGES.map((st, idx) => {
+          let stepClass = '';
+          let circleContent = st.icon;
+          if (idx < stageIdx) {
+            stepClass = 'completed';
+            circleContent = '✓';
+          } else if (idx === stageIdx) {
+            stepClass = 'active';
+          }
+          return `
+            <div class="tracker-step ${stepClass}">
+              <div class="tracker-circle">${circleContent}</div>
+              <div class="tracker-label">${st.label}</div>
+            </div>
+          `;
+        }).join('');
+
+        // Dynamic Cancellation Section
         let cancelSectionHtml = '';
-        if (msToLock > 0) {
+        if (stageIdx >= 2 && stageIdx < 4) {
+          cancelSectionHtml = `
+            <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 0.65rem 0.85rem; margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; gap: 0.75rem; flex-wrap: wrap;">
+              <div>
+                <span style="color: #b45309; font-weight: 700;">🚚 Active Carrier Transit:</span>
+                <div style="font-size: 0.7rem; color: #b45309; margin-top: 0.2rem;">
+                  🔒 Handed over to BlueDart Air Express (${currentStage.hub}). Free cancellation locked during transit.
+                </div>
+              </div>
+              <button class="btn-sm" disabled style="background: var(--card-border); color: var(--text-muted); cursor: not-allowed; padding: 0.45rem 0.95rem; font-weight: 600; border-radius: 6px;">
+                🔒 In Transit
+              </button>
+            </div>
+          `;
+        } else if (stageIdx === 4) {
+          cancelSectionHtml = `
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 0.55rem 0.85rem; margin-top: 0.75rem; font-size: 0.8rem; color: #059669; display: flex; align-items: center; gap: 0.5rem;">
+              <span>✅ Delivered • Order complete and safely arrived at customer doorstep</span>
+            </div>
+          `;
+        } else if (msToLock > 0) {
           cancelSectionHtml = `
             <div style="background: rgba(37, 99, 235, 0.07); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 8px; padding: 0.65rem 0.85rem; margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; gap: 0.75rem; flex-wrap: wrap;">
               <div>
-                <span style="color: var(--primary); font-weight: 700;">🚚 Remaining Time to Reach You:</span>
+                <span style="color: var(--primary); font-weight: 700;">🚚 Estimated Arrival Window:</span>
                 <span style="font-family: var(--font-mono); font-weight: 800; color: var(--text);" class="order-live-timer" data-reach-ms="${completionMs}" data-lock-ms="${lockMs}" id="timer_${ord.id}">${reachTimeStr}</span>
                 <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem;">
-                  Free cancellation available until 6 hours before delivery
+                  Free cancellation available until 6 hours before arrival
                 </div>
               </div>
               <button class="btn-sm" style="background: #ef4444; color: white; padding: 0.45rem 0.95rem; font-weight: 700; border-radius: 6px; cursor: pointer; transition: transform 0.15s;" onclick="cancelAndRemoveOrder('${ord.id}')">
@@ -2271,25 +2663,18 @@ PORTAL_HTML = """<!DOCTYPE html>
               </button>
             </div>
           `;
-        } else if (msToCompletion > 0) {
+        } else {
           cancelSectionHtml = `
             <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 0.65rem 0.85rem; margin-top: 0.75rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; gap: 0.75rem; flex-wrap: wrap;">
               <div>
-                <span style="color: #b45309; font-weight: 700;">🚚 Remaining Time to Reach You:</span>
-                <span style="font-family: var(--font-mono); font-weight: 800; color: var(--text);" class="order-live-timer" data-reach-ms="${completionMs}" data-lock-ms="${lockMs}" id="timer_${ord.id}">${reachTimeStr}</span>
+                <span style="color: #b45309; font-weight: 700;">🚚 In Dispatch:</span>
                 <div style="font-size: 0.7rem; color: #b45309; margin-top: 0.2rem;">
-                  🔒 In transit & final dispatch: Cancellation locked within 6 hours of arrival
+                  🔒 Final sorting: Cancellation locked within 6 hours of completion
                 </div>
               </div>
-              <button class="btn-sm" disabled style="background: var(--card-border); color: var(--text-muted); cursor: not-allowed; padding: 0.45rem 0.95rem; font-weight: 600; border-radius: 6px;" title="Cannot cancel within 6 hours of arrival">
-                🔒 In Transit
+              <button class="btn-sm" disabled style="background: var(--card-border); color: var(--text-muted); cursor: not-allowed; padding: 0.45rem 0.95rem; font-weight: 600; border-radius: 6px;">
+                🔒 Locked
               </button>
-            </div>
-          `;
-        } else {
-          cancelSectionHtml = `
-            <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 0.55rem 0.85rem; margin-top: 0.75rem; font-size: 0.8rem; color: #059669; display: flex; align-items: center; gap: 0.5rem;">
-              <span>✅ Delivered • Package has reached you</span>
             </div>
           `;
         }
@@ -2304,7 +2689,7 @@ PORTAL_HTML = """<!DOCTYPE html>
               </div>
               <div style="text-align: right;">
                 <span style="font-size: 0.725rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 9999px; ${statusBadgeStyle}">
-                  ● ${statusText}
+                  ${statusText}
                 </span>
                 <div style="font-size: 1.2rem; font-weight: 800; color: var(--text); margin-top: 0.35rem;">
                   ₹${Number(ord.grand_total).toLocaleString('en-IN')} ${ord.currency}
@@ -2321,6 +2706,75 @@ PORTAL_HTML = """<!DOCTYPE html>
             <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); border-top: 1px dashed var(--card-border); padding-top: 0.55rem; font-family: var(--font-mono);">
               <span>Payment Reference:</span>
               <span style="font-weight: 600; color: #059669;">${rzpId}</span>
+            </div>
+
+            <!-- Real-Time Order Lifecycle & Live Tracking Panel -->
+            <div class="order-tracker-card">
+              <div class="tracker-header">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 1.05rem;">📡</span>
+                  <span style="font-weight: 800; font-size: 0.85rem; color: #ffffff;">Live Shipment Journey</span>
+                </div>
+                <div class="tracker-badge-carrier">
+                  <span>✈️ BlueDart Air Express</span>
+                </div>
+              </div>
+
+              <!-- Animated 5-Step Progress Stepper -->
+              <div class="tracker-stepper">
+                <div style="position: absolute; top: 18px; left: 28px; right: 28px; height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; z-index: 1;">
+                  <div style="height: 100%; width: ${progressPct}%; background: linear-gradient(90deg, #00f0ff, #10b981); box-shadow: 0 0 10px rgba(0,240,255,0.85); border-radius: 2px; transition: width 0.5s ease;"></div>
+                </div>
+                ${stepsHtml}
+              </div>
+
+              <!-- Milestone & Hub Information Box -->
+              <div class="carrier-details-box">
+                <div>
+                  <div style="color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em;">Current Milestone & Location</div>
+                  <div style="color: #ffffff; font-weight: 700; margin-top: 0.2rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>📍</span>
+                    <span>${currentStage.hub}</span>
+                  </div>
+                  <div style="color: #94a3b8; font-size: 0.75rem; margin-top: 0.25rem;">
+                    ${currentStage.desc}
+                  </div>
+                </div>
+                <div style="text-align: right;">
+                  <div style="color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">AWB Waybill Tracking #</div>
+                  <div style="font-family: var(--font-mono); font-weight: 800; color: #00f0ff; font-size: 0.85rem; margin-top: 0.2rem;">
+                    ${waybillNo}
+                  </div>
+                  <div style="font-size: 0.72rem; color: #10b981; font-weight: 700; margin-top: 0.2rem;">
+                    ⚡ High-Priority Dispatch
+                  </div>
+                </div>
+              </div>
+
+              <!-- Interactive Stage Advancement & Simulation Controls -->
+              <div class="tracker-controls">
+                <button class="sim-ctrl-btn" style="background: rgba(0, 240, 255, 0.12); color: #00f0ff; border-color: rgba(0, 240, 255, 0.4);" 
+                        onclick="advanceOrderStage('${ord.id}')" 
+                        ${stageIdx >= 4 ? 'disabled' : ''} 
+                        id="btn_advance_${ord.id}"
+                        title="Manually advance to the next delivery milestone">
+                  ⚡ Advance Stage
+                </button>
+
+                <button class="sim-ctrl-btn" style="background: ${isSimulating ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.12)'}; color: ${isSimulating ? '#ef4444' : '#10b981'}; border-color: ${isSimulating ? 'rgba(239, 68, 68, 0.4)' : 'rgba(16, 185, 129, 0.4)'};" 
+                        onclick="toggleOrderSimulation('${ord.id}')" 
+                        id="btn_sim_${ord.id}"
+                        title="Simulate complete live journey from start to finish automatically">
+                  ${isSimulating ? '⏹ Stop Simulation' : '▶ Auto-Simulate Live Journey'}
+                </button>
+
+                <button class="sim-ctrl-btn" style="background: rgba(255, 255, 255, 0.05); color: #cbd5e1; border-color: rgba(255, 255, 255, 0.2);" 
+                        onclick="resetOrderStage('${ord.id}')" 
+                        id="btn_reset_${ord.id}"
+                        title="Reset back to confirmed state for re-testing">
+                  🔄 Reset Tracking
+                </button>
+              </div>
             </div>
 
             <!-- Dynamic Cancellation & Delivery Timer Control -->

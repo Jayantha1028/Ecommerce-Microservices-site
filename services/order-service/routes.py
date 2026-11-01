@@ -14,7 +14,7 @@ from client import _call, _create_payment_for_order, _expect, _request_headers
 from config import PAYMENT_SERVICE_URL, PAYMENT_TIMEOUT, PRODUCT_SERVICE_URL, PRODUCT_TIMEOUT, SERVICE_NAME
 from database import get_db
 from models import Order, OrderItem
-from schemas import CancelInput, OrderCreate, PaymentVerifyInput, order_payload
+from schemas import CancelInput, OrderCreate, PaymentVerifyInput, StatusUpdateIn, order_payload
 
 router = APIRouter()
 
@@ -409,4 +409,47 @@ def delete_or_cancel_order(
         "message": "Order successfully cancelled and deleted. Stock restored.",
         "id": order_id,
     }
+
+
+ALLOWED_ORDER_STATUSES = {
+    "PAYMENT_PENDING",
+    "PAID",
+    "PROCESSING",
+    "PACKED",
+    "SHIPPED",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+    "CANCELLED",
+}
+
+
+@router.patch("/orders/{order_id}/status")
+@router.put("/orders/{order_id}/status")
+def update_order_status(
+    order_id: str,
+    payload: StatusUpdateIn,
+    db: Session = Depends(get_db),
+    who: tuple[str, str] = Depends(identity),
+) -> dict:
+    """Update shipment or lifecycle status of an order."""
+    user_id, role = who
+    order = db.scalar(select(Order).where(Order.id == order_id))
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.user_id != user_id and role not in {"ADMIN", "ORDER_MANAGER"}:
+        raise HTTPException(status_code=403, detail="You cannot access this order")
+
+    new_status = payload.status.strip().upper()
+    if new_status not in ALLOWED_ORDER_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid status '{new_status}'. Allowed: {', '.join(sorted(ALLOWED_ORDER_STATUSES))}",
+        )
+
+    order.status = new_status
+    db.commit()
+    db.refresh(order)
+    return order_payload(order)
+
 
