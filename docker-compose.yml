@@ -18,6 +18,7 @@ services:
     networks:
       - auth-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   user-auth-service:
     build: { context: ./services/auth-service }
@@ -39,6 +40,7 @@ services:
       - auth-network
       - internal-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   product-db:
     image: postgres:16-alpine
@@ -56,6 +58,7 @@ services:
     networks:
       - product-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   product-service:
     build: { context: ./services/product-service }
@@ -76,6 +79,7 @@ services:
       - product-network
       - internal-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   payment-db:
     image: postgres:16-alpine
@@ -93,6 +97,7 @@ services:
     networks:
       - payment-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   payment-service:
     build: { context: ./services/payment-service }
@@ -116,6 +121,7 @@ services:
       - payment-network
       - internal-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   order-db:
     image: postgres:16-alpine
@@ -133,6 +139,7 @@ services:
     networks:
       - order-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   order-service:
     build: { context: ./services/order-service }
@@ -160,6 +167,7 @@ services:
       - order-network
       - internal-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   cart-db:
     image: postgres:16-alpine
@@ -177,6 +185,7 @@ services:
     networks:
       - cart-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   cart-service:
     build: { context: ./services/cart-service }
@@ -202,6 +211,7 @@ services:
       - cart-network
       - internal-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -216,6 +226,7 @@ services:
     networks:
       - internal-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
   api-gateway:
     build: { context: ./services/api-gateway }
@@ -246,6 +257,7 @@ services:
     networks:
       - internal-network
     restart: unless-stopped
+    stop_grace_period: 30s
 
 volumes:
   auth-data:
