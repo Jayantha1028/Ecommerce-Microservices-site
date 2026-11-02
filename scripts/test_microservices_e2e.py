@@ -471,9 +471,76 @@ def run_suite() -> int:
         log_test("Payment Verification Handler Executed", status in {200, 400, 502}, f"Status: HTTP {status}")
 
     # -----------------------------------------------------------------
-    # TEST GROUP 9: Safe Test Data Cleanup
+    # TEST GROUP 9: Advanced E-Commerce Capabilities (Search, Filters, Coupons, Reviews)
     # -----------------------------------------------------------------
-    print("\n--- 9. Safe Test Data Cleanup ---")
+    print("\n--- 9. Advanced E-Commerce Capabilities ---")
+    # 1. Categories endpoint
+    status, cat_res = request_json("GET", "/categories", expected_status=200)
+    categories = cat_res.get("categories", [])
+    log_test("Categories Retrieval", len(categories) >= 5, f"Found {len(categories)} categories")
+
+    # 2. Search query filtering
+    status, search_res = request_json("GET", "/products?search=MacBook", expected_status=200)
+    search_items = search_res.get("data", [])
+    log_test("Fuzzy & Keyword Product Search", len(search_items) > 0 and "MacBook" in search_items[0].get("name", ""))
+
+    # 3. Category filtering
+    status, audio_res = request_json("GET", "/products?category=audio", expected_status=200)
+    audio_items = audio_res.get("data", [])
+    all_audio = all(item.get("category") == "audio" for item in audio_items)
+    log_test("Category Filtering (Audio)", len(audio_items) > 0 and all_audio, f"Items: {len(audio_items)}")
+
+    # 4. Sorting
+    status, sorted_res = request_json("GET", "/products?category=laptops&sort_by=price_asc", expected_status=200)
+    sorted_items = sorted_res.get("data", [])
+    if len(sorted_items) >= 2:
+        is_asc = float(sorted_items[0]["price"]) <= float(sorted_items[1]["price"])
+    else:
+        is_asc = True
+    log_test("Catalog Sorting by Price Ascending", is_asc)
+
+    # 5. Coupon Application & Cart Recalculation
+    target_product_id = laptop.get("id") if laptop else None
+    if target_product_id and customer_token:
+        # Add item to cart
+        request_json("POST", "/cart/items", payload={"product_id": target_product_id, "quantity": 1}, token=customer_token, expected_status=201)
+        # Apply coupon
+        status, coupon_res = request_json("POST", "/cart/coupon", payload={"code": "CYBER20"}, token=customer_token, expected_status=200)
+        log_test("Promotional Coupon Application (CYBER20)", coupon_res.get("status") == "success")
+
+        # Verify discount reflected in cart
+        status, cart_with_coupon = request_json("GET", "/cart", token=customer_token, expected_status=200)
+        has_discount = float(cart_with_coupon.get("discount", "0.00")) > 0
+        log_test("Cart Dynamic Discount Recalculation", has_discount, f"Discount: ₹{cart_with_coupon.get('discount')}")
+
+        # Remove coupon & clear cart
+        status, _ = request_json("DELETE", "/cart/coupon", token=customer_token, expected_status=200)
+        log_test("Promotional Coupon Removal", status == 200)
+        request_json("DELETE", "/cart", token=customer_token, expected_status=200)
+
+    # 6. Customer Product Reviews & Ratings
+    if target_product_id and customer_token:
+        status, review_res = request_json(
+            "POST",
+            f"/products/{target_product_id}/reviews",
+            payload={
+                "rating": 5,
+                "title": "Superb compilation performance",
+                "comment": "Blazing fast Docker builds and seamless multi-tasking.",
+            },
+            token=customer_token,
+            expected_status=201,
+        )
+        log_test("Customer Review Submission", status == 201 and review_res.get("rating") == 5)
+
+        status, get_reviews_res = request_json("GET", f"/products/{target_product_id}/reviews", expected_status=200)
+        reviews_list = get_reviews_res.get("reviews", [])
+        log_test("Customer Reviews & Star Distribution Retrieval", len(reviews_list) > 0 and get_reviews_res.get("averageRating") >= 4.0)
+
+    # -----------------------------------------------------------------
+    # TEST GROUP 10: Safe Test Data Cleanup
+    # -----------------------------------------------------------------
+    print("\n--- 10. Safe Test Data Cleanup ---")
     if test_product_id and admin_token:
         status, _ = request_json("DELETE", f"/products/{test_product_id}", token=admin_token, expected_status=204)
         log_test("Test Product Soft-Deleted (Unpublished)", status == 204)

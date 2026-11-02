@@ -35,9 +35,23 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Initialize database tables with connection retry logic."""
+    """Initialize database tables with connection retry logic and schema migrations."""
+    def _run_migrations(conn):
+        conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS category VARCHAR(64) DEFAULT 'accessories'"))
+        # Auto-classify existing products by SKU prefix
+        conn.execute(text("UPDATE products SET category = 'laptops' WHERE sku LIKE 'LAPTOP%' AND (category IS NULL OR category = 'accessories')"))
+        conn.execute(text("UPDATE products SET category = 'phones' WHERE sku LIKE 'PHONE%' AND (category IS NULL OR category = 'accessories')"))
+        conn.execute(text("UPDATE products SET category = 'audio' WHERE (sku LIKE 'AUDIO%' OR sku LIKE 'SPKR%') AND (category IS NULL OR category = 'accessories')"))
+        conn.execute(text("UPDATE products SET category = 'displays' WHERE sku LIKE 'DISP%' AND (category IS NULL OR category = 'accessories')"))
+        conn.execute(text("UPDATE products SET category = 'peripherals' WHERE (sku LIKE 'KEYB%' OR sku LIKE 'MOUS%') AND (category IS NULL OR category = 'accessories')"))
+        conn.execute(text("UPDATE products SET category = 'gaming' WHERE (sku LIKE 'GAME%' OR sku LIKE 'DRON%') AND (category IS NULL OR category = 'accessories')"))
+        conn.execute(text("UPDATE products SET category = 'accessories' WHERE (sku LIKE 'TABL%' OR sku LIKE 'WATCH%' OR sku LIKE 'CHRG%' OR sku LIKE 'STRE%') AND category IS NULL"))
+        conn.commit()
+
     if str(DATABASE_URL).startswith("sqlite") or str(getattr(engine, "url", "")).startswith("sqlite"):
         Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            _run_migrations(conn)
         return
 
     last_error: Exception | None = None
@@ -46,6 +60,8 @@ def init_db() -> None:
             with engine.connect() as connection:
                 connection.execute(text("SELECT 1"))
             Base.metadata.create_all(bind=engine)
+            with engine.connect() as conn:
+                _run_migrations(conn)
             return
         except Exception as exc:
             last_error = exc

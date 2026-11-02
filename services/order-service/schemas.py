@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, Field, StringConstraints
 from typing_extensions import Annotated
@@ -25,6 +26,8 @@ class OrderCreate(BaseModel):
     user_name: Optional[str] = Field(default=None, max_length=255)
     user_address: Optional[str] = Field(default=None, max_length=2000)
     currency: str = Field(default="INR", min_length=3, max_length=3)
+    discount: Optional[str] = Field(default="0.00")
+    coupon_code: Optional[str] = Field(default=None, max_length=32)
 
 
 class PaymentVerifyInput(BaseModel):
@@ -81,6 +84,8 @@ def order_payload(order: Order, include_payment: bool = True) -> dict:
             for item in order.items
         ],
         "subtotal": str(order.subtotal),
+        "discount": str(getattr(order, "discount", Decimal("0.00")) or "0.00"),
+        "coupon_code": getattr(order, "coupon_code", None),
         "tax": str(order.tax),
         "grand_total": str(order.grand_total),
         "currency": order.currency,

@@ -9,7 +9,7 @@ import database
 from client import get_http_client
 from config import ORDER_TIMEOUT, SERVICE_NAME
 from database import Base, SessionLocal, engine, get_db, init_db
-from models import CartItem
+from models import CartCoupon, CartItem
 from routes import router
 from schemas import CartItemAdd, CartItemUpdate, CheckoutRequest
 

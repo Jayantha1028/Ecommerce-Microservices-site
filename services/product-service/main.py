@@ -7,7 +7,7 @@ from fastapi import FastAPI
 import database
 from config import SERVICE_NAME
 from database import Base, SessionLocal, engine, get_db, init_db
-from models import Inventory, Product, Reservation, ReservationItem
+from models import Inventory, Product, Reservation, ReservationItem, Review
 from routes import router
 from schemas import product_payload, reservation_payload
 
@@ -39,6 +39,7 @@ __all__ = [
     "Inventory",
     "Reservation",
     "ReservationItem",
+    "Review",
     "product_payload",
     "reservation_payload",
 ]

@@ -24,8 +24,13 @@ def requires_auth(method: str, path: str) -> bool:
     if (method.upper(), path.rstrip("/")) in PUBLIC_EXACT:
         return False
 
-    # Product catalogue reads are public; modifications (POST, PUT, DELETE) require admin auth.
+    if path == "/categories" or path.startswith("/categories"):
+        return False
+
+    # Product catalogue reads are public; modifications require auth.
     if path == "/products" or path.startswith("/products/"):
+        if path.rstrip("/").endswith("/reviews") and method.upper() == "POST":
+            return True
         return method.upper() not in {"GET", "HEAD"}
 
     return path.startswith(("/users", "/inventory", "/cart", "/orders", "/payments", "/auth/profile"))

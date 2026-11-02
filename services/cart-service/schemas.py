@@ -18,3 +18,8 @@ class CartItemUpdate(BaseModel):
 class CheckoutRequest(BaseModel):
     """Payload for checking out the current shopping cart."""
     currency: str = Field(default="INR", min_length=3, max_length=3)
+
+
+class ApplyCouponRequest(BaseModel):
+    """Payload for applying a promotional discount coupon."""
+    code: str = Field(min_length=1, max_length=32)

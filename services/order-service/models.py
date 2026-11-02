@@ -23,6 +23,8 @@ class Order(Base):
     user_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     user_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    discount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=Decimal("0.00"))
+    coupon_code: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     tax: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=Decimal("0.00"))
     grand_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INR")

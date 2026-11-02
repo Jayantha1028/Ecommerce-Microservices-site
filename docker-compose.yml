@@ -62,6 +62,8 @@ services:
 
   product-service:
     build: { context: ./services/product-service }
+    volumes:
+      - ./services/product-service:/app
     environment:
       DATABASE_URL: postgresql+psycopg2://product_user:${PRODUCT_DB_PASSWORD}@product-db:5432/product_db
       REDIS_URL: redis://redis:6379/0
@@ -189,6 +191,8 @@ services:
 
   cart-service:
     build: { context: ./services/cart-service }
+    volumes:
+      - ./services/cart-service:/app
     environment:
       DATABASE_URL: postgresql+psycopg2://cart_user:${CART_DB_PASSWORD}@cart-db:5432/cart_db
       PRODUCT_SERVICE_URL: http://product-service:8002

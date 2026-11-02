@@ -35,9 +35,16 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Initialize database tables with connection retry logic."""
+    """Initialize database tables with connection retry logic and migrations."""
+    def _run_migrations(conn):
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount NUMERIC(12, 2) DEFAULT 0.00"))
+        conn.execute(text("ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(32)"))
+        conn.commit()
+
     if str(DATABASE_URL).startswith("sqlite") or str(getattr(engine, "url", "")).startswith("sqlite"):
         Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            _run_migrations(conn)
         return
 
     last_error: Exception | None = None
@@ -46,6 +53,8 @@ def init_db() -> None:
             with engine.connect() as connection:
                 connection.execute(text("SELECT 1"))
             Base.metadata.create_all(bind=engine)
+            with engine.connect() as conn:
+                _run_migrations(conn)
             return
         except Exception as exc:
             last_error = exc

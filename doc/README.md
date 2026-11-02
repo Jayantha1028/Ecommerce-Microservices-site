@@ -2,7 +2,7 @@
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Jayantha1028/Ecommerce-Microservices-site)
 [![Repository](https://img.shields.io/badge/GitHub-Jayantha1028%2FEcommerce--Microservices--site-blue?logo=github)](https://github.com/Jayantha1028/Ecommerce-Microservices-site)
-[![Test Suite](https://img.shields.io/badge/Tests-32%2F32%20Passing-brightgreen?logo=pytest)](scripts/test_all.sh)
+[![Test Suite](https://img.shields.io/badge/Tests-41%2F41%20Passing-brightgreen?logo=pytest)](scripts/test_all.sh)
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-blue?logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-12%20Containers-2496ED?logo=docker)](docker-compose.yml)
@@ -24,6 +24,7 @@ An enterprise-grade, high-availability e-commerce platform architected as decoup
    - [Distributed Multi-Service Checkout Saga (`order-service`)](#3-distributed-multi-service-checkout-saga-order-service)
    - [Cryptographic Payment Signature Verification (`payment-service`)](#4-cryptographic-payment-signature-verification-payment-service)
    - [Real-Time 5-Stage Live Shipment Stepper (`order-service` & `portal.py`)](#5-real-time-5-stage-live-shipment-stepper-order-service--portalpy)
+   - [Advanced E-Commerce Capabilities (Taxonomy, Coupons & Reviews)](#6-advanced-e-commerce-capabilities-taxonomy-coupons--reviews)
 3. [Core Libraries & Frameworks Reference](#-core-libraries--frameworks-reference)
 4. [Exhaustive Technical Jargon Glossary](#-exhaustive-technical-jargon-glossary)
 5. [Microservices Directory & Network Ports](#-microservices-directory--network-ports)
@@ -564,6 +565,92 @@ async function toggleOrderSimulation(orderId) {
 - **AWB Waybill Generation**: Deterministically generates high-priority air express waybills (`BLUEDART-IND-` + uppercase UUID substring) rendered with courier milestones.
 - **Dispatch Lock Enforcement**: Once the status transitions to `SHIPPED` or higher, the frontend locks cancellation buttons with a warning that the package has left the fulfillment hub.
 
+### 6. Advanced E-Commerce Capabilities (Taxonomy, Coupons & Reviews)
+
+#### 1. Dynamic Catalog Taxonomy & Multi-Attribute Search (`product-service`):
+```python
+@router.get("/products")
+def list_products(
+    search: Optional[str] = Query(default=None, max_length=255),
+    category: Optional[str] = Query(default=None, max_length=64),
+    sort_by: Optional[str] = Query(default="newest"),
+    min_price: Optional[float] = Query(default=None, ge=0),
+    max_price: Optional[float] = Query(default=None, ge=0),
+    in_stock_only: Optional[bool] = Query(default=False),
+    db: Session = Depends(get_db),
+) -> dict:
+    query = select(Product).where(Product.status == "PUBLISHED")
+    if search:
+        search_term = f"%{search.strip()}%"
+        query = query.where(
+            (Product.name.ilike(search_term))
+            | (Product.sku.ilike(search_term))
+            | (Product.description.ilike(search_term))
+        )
+    if category and category.lower() != "all":
+        query = query.where(Product.category == category.lower())
+    if min_price is not None:
+        query = query.where(Product.price >= Decimal(str(min_price)))
+    if max_price is not None:
+        query = query.where(Product.price <= Decimal(str(max_price)))
+    if in_stock_only:
+        query = query.join(Product.inventory).where(Inventory.quantity > 0)
+
+    # Dynamic sorting
+    if sort_by == "price_asc":
+        query = query.order_by(Product.price.asc())
+    elif sort_by == "price_desc":
+        query = query.order_by(Product.price.desc())
+    elif sort_by == "name_asc":
+        query = query.order_by(Product.name.asc())
+    else:
+        query = query.order_by(Product.created_at.desc())
+```
+
+#### 2. Promotional Coupon & Cart Discount Engine (`cart-service`):
+```python
+PROMO_COUPONS = {
+    "CYBER20": {"type": "PERCENT", "value": Decimal("20.00"), "max_discount": Decimal("20000.00"), "min_order": Decimal("1000.00")},
+    "FLAT5000": {"type": "FLAT", "value": Decimal("5000.00"), "max_discount": Decimal("5000.00"), "min_order": Decimal("20000.00")},
+    "WELCOME10": {"type": "PERCENT", "value": Decimal("10.00"), "max_discount": Decimal("5000.00"), "min_order": Decimal("500.00")},
+    "TECHFEST": {"type": "PERCENT", "value": Decimal("15.00"), "max_discount": Decimal("12000.00"), "min_order": Decimal("2000.00")},
+}
+
+@router.post("/cart/coupon")
+def apply_coupon(payload: ApplyCouponRequest, db: Session = Depends(get_db), who=Depends(identity)) -> dict:
+    user_id, _ = who
+    code = payload.code.strip().upper()
+    if code not in PROMO_COUPONS:
+        raise HTTPException(status_code=400, detail=f"Invalid promo code '{code}'")
+
+    promo = PROMO_COUPONS[code]
+    existing = db.scalar(select(CartCoupon).where(CartCoupon.user_id == user_id))
+    if existing:
+        existing.code = code
+    else:
+        db.add(CartCoupon(user_id=user_id, code=code, discount_type=promo["type"], discount_value=promo["value"], min_order_value=promo["min_order"]))
+    db.commit()
+    return {"status": "success", "message": f"Coupon '{code}' applied successfully!"}
+```
+
+#### 3. Verified Customer Reviews & Star Ratings Aggregation (`product-service`):
+```python
+@router.post("/products/{product_id}/reviews", status_code=201)
+def add_product_review(product_id: str, data: ReviewCreate, db: Session = Depends(get_db), who=Depends(require_identity)):
+    review = Review(
+        product_id=product_id,
+        user_id=who[0],
+        user_name=who[1] or "Verified Customer",
+        rating=data.rating, # 1 to 5
+        title=data.title,
+        comment=data.comment,
+    )
+    db.add(review)
+    db.commit()
+    invalidate_catalog_cache()
+    return review_payload(review)
+```
+
 ---
 
 ## 🧰 Core Libraries & Frameworks Reference
@@ -658,7 +745,7 @@ Every service will report `Up (healthy)`.
 - **Built-in System Documentation:** [http://localhost:8000/support](http://localhost:8000/support)
 - **Hidden Administrator Gate:** Press `Ctrl + Shift + A` (or click the top-left logo 5 times) $\to$ Password: `AdminPassword123!`
 
-### 3. Run the Automated End-to-End Test Suite (32/32 Passing)
+### 3. Run the Automated End-to-End Test Suite (41/41 Passing)
 ```bash
 bash scripts/test_all.sh
 ```

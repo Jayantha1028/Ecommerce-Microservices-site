@@ -101,7 +101,11 @@ def create_order(
 
     subtotal = subtotal.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     tax = Decimal("0.00")
-    grand_total = subtotal + tax
+    try:
+        discount = Decimal(str(data.discount or "0.00")).quantize(Decimal("0.01"))
+    except Exception:
+        discount = Decimal("0.00")
+    grand_total = max(Decimal("0.00"), subtotal - discount + tax)
 
     order = Order(
         user_id=user_id,
@@ -109,6 +113,8 @@ def create_order(
         user_name=data.user_name,
         user_address=data.user_address,
         subtotal=subtotal,
+        discount=discount,
+        coupon_code=data.coupon_code,
         tax=tax,
         grand_total=grand_total,
         currency=currency,

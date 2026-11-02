@@ -1105,6 +1105,8 @@ PORTAL_HTML = """<!DOCTYPE html>
             <button class="filter-pill" onclick="setCategory('Audio', this)">🎧 Audio Systems</button>
             <button class="filter-pill" onclick="setCategory('Peripherals', this)">⌨️ Peripherals</button>
             <button class="filter-pill" onclick="setCategory('Displays', this)">🖥️ Displays</button>
+            <button class="filter-pill" onclick="setCategory('Gaming', this)">🎮 Gaming & Drones</button>
+            <button class="filter-pill" onclick="setCategory('Accessories', this)">🔌 Accessories</button>
           </div>
 
           <!-- Sort Select -->
@@ -1791,14 +1793,15 @@ PORTAL_HTML = """<!DOCTYPE html>
           <span id="couponActiveBadge" style="display: none; background: rgba(0,255,170,0.15); color: #00ffaa; border: 1px solid rgba(0,255,170,0.4); padding: 0.1rem 0.45rem; border-radius: 9999px; font-size: 0.68rem; font-weight: 800;">COUPON APPLIED</span>
         </div>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
-          <input type="text" id="couponInput" placeholder="Enter coupon (e.g. SAVE10)" style="flex: 1; background: var(--input-bg); border: 1px solid var(--card-border); color: #ffffff; padding: 0.4rem 0.65rem; border-radius: 6px; font-size: 0.8rem; text-transform: uppercase; font-family: var(--font-mono); font-weight: 700;">
+          <input type="text" id="couponInput" placeholder="Enter coupon (e.g. CYBER20)" style="flex: 1; background: var(--input-bg); border: 1px solid var(--card-border); color: #ffffff; padding: 0.4rem 0.65rem; border-radius: 6px; font-size: 0.8rem; text-transform: uppercase; font-family: var(--font-mono); font-weight: 700;">
           <button onclick="applyCoupon()" class="btn-sm" style="background: var(--primary); font-weight: 800; padding: 0.4rem 0.85rem;">Apply</button>
         </div>
         <div id="couponStatusMessage" style="font-size: 0.74rem; margin-top: 0.35rem; display: none;"></div>
         <div style="display: flex; gap: 0.35rem; margin-top: 0.45rem; flex-wrap: wrap;">
-          <span onclick="quickApplyCoupon('SAVE10')" style="cursor: pointer; font-size: 0.68rem; background: rgba(0,212,255,0.1); color: #00f0ff; border: 1px solid rgba(0,212,255,0.3); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700;">⚡ SAVE10 (10% OFF)</span>
-          <span onclick="quickApplyCoupon('FESTIVE20')" style="cursor: pointer; font-size: 0.68rem; background: rgba(255,170,0,0.12); color: #ffaa00; border: 1px solid rgba(255,170,0,0.3); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700;">🎉 FESTIVE20 (20% OFF)</span>
-          <span onclick="quickApplyCoupon('WELCOME500')" style="cursor: pointer; font-size: 0.68rem; background: rgba(0,255,170,0.1); color: #00ffaa; border: 1px solid rgba(0,255,170,0.3); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700;">🎁 WELCOME500 (₹500 OFF)</span>
+          <span onclick="quickApplyCoupon('CYBER20')" style="cursor: pointer; font-size: 0.68rem; background: rgba(0,212,255,0.1); color: #00f0ff; border: 1px solid rgba(0,212,255,0.3); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700;">⚡ CYBER20 (20% OFF)</span>
+          <span onclick="quickApplyCoupon('FLAT5000')" style="cursor: pointer; font-size: 0.68rem; background: rgba(0,255,170,0.1); color: #00ffaa; border: 1px solid rgba(0,255,170,0.3); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700;">🎁 FLAT5000 (₹5,000 OFF)</span>
+          <span onclick="quickApplyCoupon('WELCOME10')" style="cursor: pointer; font-size: 0.68rem; background: rgba(255,170,0,0.12); color: #ffaa00; border: 1px solid rgba(255,170,0,0.3); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700;">🎉 WELCOME10 (10% OFF)</span>
+          <span onclick="quickApplyCoupon('TECHFEST')" style="cursor: pointer; font-size: 0.68rem; background: rgba(255,0,128,0.12); color: #ff007f; border: 1px solid rgba(255,0,128,0.3); padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700;">🔥 TECHFEST (15% OFF)</span>
         </div>
       </div>
 
@@ -3073,7 +3076,7 @@ PORTAL_HTML = """<!DOCTYPE html>
       document.getElementById('ordersModal').classList.remove('active');
     }
 
-    function openProductModal(productId) {
+    async function openProductModal(productId) {
       const p = allProducts.find(item => item.id === productId);
       if (!p) return;
       const icon = ICONS[p.sku.split('-')[0]] || '📦';
@@ -3100,10 +3103,30 @@ PORTAL_HTML = """<!DOCTYPE html>
         'STRE': 'Interactive Studio Production Console'
       };
       const skuPrefix = p.sku.split('-')[0];
-      const categoryLabel = categoryMap[skuPrefix] || 'E-Commerce Flagship Hardware';
-      const ratingInfo = getProductRating(p.sku);
+      const categoryLabel = categoryMap[skuPrefix] || `${(p.category || 'Hardware').toUpperCase()} Flagship Hardware`;
+      
+      let liveReviews = [];
+      let avgRating = p.rating || 4.8;
+      let totalRatings = p.reviewCount || 20;
+
+      try {
+        const revRes = await fetch(`/products/${productId}/reviews`);
+        if (revRes.ok) {
+          const revData = await revRes.json();
+          liveReviews = (revData.reviews || []).map(r => ({
+            name: r.userName || 'Verified Customer',
+            rating: r.rating,
+            date: new Date(r.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+            verified: true,
+            text: r.comment
+          }));
+          if (revData.averageRating) avgRating = revData.averageRating;
+          if (revData.totalReviews) totalRatings = revData.totalReviews;
+        }
+      } catch (e) { console.warn(e); }
 
       const allReviewsForSku = [
+        ...liveReviews,
         ...((productReviews && productReviews[p.sku]) || []),
         { name: 'Harish V.', rating: 5, date: 'Verified Purchase', verified: true, text: 'Top tier build quality. Thermal management is exceptional even under continuous heavy workloads.' },
         { name: 'Deepa N.', rating: 5, date: 'Verified Purchase', verified: true, text: 'Flawless compatibility and ultra-fast delivery. Exceeded all technical expectations.' }
@@ -3284,8 +3307,12 @@ PORTAL_HTML = """<!DOCTYPE html>
         const imgHtml = p.imageUrl 
           ? `<img src="${p.imageUrl}" alt="${p.name}" loading="lazy">`
           : `<span>${icon}</span>`;
-        const ratingData = getProductRating(p.sku);
+        const ratingData = {
+          rating: p.rating || (getProductRating(p.sku).rating),
+          count: p.reviewCount || (getProductRating(p.sku).count)
+        };
         const isWishlisted = wishlist.includes(p.id);
+        const categoryBadge = p.category ? `<span style="font-size: 0.68rem; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.28); padding: 0.12rem 0.5rem; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em;">${p.category}</span>` : '';
 
         return `
           <div class="product-card">
@@ -3296,14 +3323,17 @@ PORTAL_HTML = """<!DOCTYPE html>
               ${imgHtml}
             </div>
             <div class="product-info">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; gap: 0.5rem;">
-                <span class="product-sku" style="margin-bottom: 0; font-weight: 700;">${p.sku}</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem; gap: 0.5rem; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                  <span class="product-sku" style="margin-bottom: 0; font-weight: 700;">${p.sku}</span>
+                  ${categoryBadge}
+                </div>
                 <span style="font-size: 0.72rem; font-weight: 700; color: ${p.stock > 0 ? '#059669' : '#ef4444'}; background: ${p.stock > 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)'}; padding: 0.15rem 0.55rem; border-radius: 9999px; white-space: nowrap;">
                   ● ${p.stock} in stock
                 </span>
               </div>
               <h3 class="product-title" onclick="openProductModal('${p.id}')" title="Click to view full description & specs">${p.name}</h3>
-              <div class="product-rating">
+              <div class="product-rating" onclick="openProductModal('${p.id}')" style="cursor: pointer;" title="View verified buyer reviews">
                 <span>⭐ ${ratingData.rating}</span>
                 <span style="color: #94a3b8; font-weight: 500; font-size: 0.72rem;">(${ratingData.count} reviews)</span>
               </div>
@@ -3724,37 +3754,59 @@ PORTAL_HTML = """<!DOCTYPE html>
       }
     }
 
-    function submitProductReview(event, sku, productId) {
+    async function submitProductReview(event, sku, productId) {
       event.preventDefault();
       const nameInput = document.getElementById('reviewAuthorName');
       const commentInput = document.getElementById('reviewCommentText');
       if (!commentInput || !commentInput.value.trim()) return;
 
-      const authorName = (nameInput && nameInput.value.trim()) || currentUserEmail || 'Verified Shopper';
-      const newReview = {
-        name: authorName,
-        rating: selectedReviewStars,
-        date: 'Just now',
-        verified: true,
-        text: commentInput.value.trim()
-      };
+      const authorName = (nameInput && nameInput.value.trim()) || (currentUserEmail ? currentUserEmail.split('@')[0] : 'Verified Customer');
+      const commentText = commentInput.value.trim();
 
-      if (!productReviews[sku]) productReviews[sku] = [];
-      productReviews[sku].unshift(newReview);
-      localStorage.setItem('ecom_product_reviews', JSON.stringify(productReviews));
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (customerToken) {
+          headers['Authorization'] = `Bearer ${customerToken}`;
+        }
+        const resp = await fetch(`/products/${productId}/reviews`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            rating: selectedReviewStars,
+            title: 'Verified Customer Review',
+            comment: commentText
+          })
+        });
+        if (!resp.ok) {
+          const errData = await resp.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Failed to submit review');
+        }
+      } catch (err) {
+        if (!productReviews[sku]) productReviews[sku] = [];
+        productReviews[sku].unshift({
+          name: authorName,
+          rating: selectedReviewStars,
+          date: 'Just now',
+          verified: true,
+          text: commentText
+        });
+        localStorage.setItem('ecom_product_reviews', JSON.stringify(productReviews));
+      }
 
-      openProductModal(productId);
+      await fetchCatalog();
+      await openProductModal(productId);
       applyFiltersAndSort();
     }
 
     // 3. Promotional Coupon / Discount Engine
     const VALID_COUPONS = {
-      'SAVE10': { code: 'SAVE10', type: 'percent', value: 10, description: '10% discount applied to your order!' },
-      'FESTIVE20': { code: 'FESTIVE20', type: 'percent', value: 20, description: '20% festive discount applied!' },
-      'WELCOME500': { code: 'WELCOME500', type: 'flat', value: 500, minOrder: 2000, description: '₹500 flat discount applied!' }
+      'CYBER20': { code: 'CYBER20', type: 'percent', value: 20, description: '20% Cyber Launch discount (Up to ₹20,000 off)!' },
+      'FLAT5000': { code: 'FLAT5000', type: 'flat', value: 5000, minOrder: 20000, description: 'Flat ₹5,000 instant savings on orders ₹20,000+!' },
+      'WELCOME10': { code: 'WELCOME10', type: 'percent', value: 10, description: 'Welcome 10% discount on entire cart!' },
+      'TECHFEST': { code: 'TECHFEST', type: 'percent', value: 15, description: 'Tech Fest 15% savings on premium electronics!' }
     };
 
-    function applyCoupon() {
+    async function applyCoupon() {
       const input = document.getElementById('couponInput');
       const msg = document.getElementById('couponStatusMessage');
       if (!input) return;
@@ -3767,24 +3819,41 @@ PORTAL_HTML = """<!DOCTYPE html>
         }
         return;
       }
-      const c = VALID_COUPONS[code];
-      if (!c) {
+      if (!customerToken) {
         if (msg) {
-          msg.textContent = '⚠️ Invalid coupon code. Try SAVE10, FESTIVE20, or WELCOME500.';
-          msg.style.color = '#ef4444';
+          msg.textContent = 'Please sign in to apply promo coupons.';
+          msg.style.color = '#f59e0b';
           msg.style.display = 'block';
         }
         return;
       }
-      appliedCoupon = c;
-      localStorage.setItem('ecom_coupon', JSON.stringify(appliedCoupon));
-      if (msg) {
-        msg.textContent = '🎉 ' + c.description;
-        msg.style.color = '#00ffaa';
-        msg.style.display = 'block';
+      try {
+        const res = await fetch('/cart/coupon', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${customerToken}`
+          },
+          body: JSON.stringify({ code: code })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || 'Failed to apply coupon');
+        }
+        if (msg) {
+          msg.textContent = `🎉 ${data.message || 'Coupon applied!'}`;
+          msg.style.color = '#00ffaa';
+          msg.style.display = 'block';
+        }
+        input.value = '';
+        await loadCart();
+      } catch (err) {
+        if (msg) {
+          msg.textContent = `⚠️ ${err.message}`;
+          msg.style.color = '#ef4444';
+          msg.style.display = 'block';
+        }
       }
-      input.value = '';
-      loadCart();
     }
 
     function quickApplyCoupon(code) {
@@ -3793,16 +3862,22 @@ PORTAL_HTML = """<!DOCTYPE html>
       applyCoupon();
     }
 
-    function removeCoupon() {
-      appliedCoupon = null;
-      localStorage.removeItem('ecom_coupon');
+    async function removeCoupon() {
+      if (customerToken) {
+        try {
+          await fetch('/cart/coupon', {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${customerToken}` }
+          });
+        } catch (e) { console.warn(e); }
+      }
       const msg = document.getElementById('couponStatusMessage');
       if (msg) {
         msg.textContent = 'Coupon removed.';
         msg.style.color = '#94a3b8';
         msg.style.display = 'block';
       }
-      loadCart();
+      await loadCart();
     }
 
     // 4. Advanced Filter & Sorting Logic
@@ -3835,13 +3910,17 @@ PORTAL_HTML = """<!DOCTYPE html>
 
       // 2. Category Filter
       if (currentCategory !== 'ALL') {
+        const catLow = currentCategory.toLowerCase();
         filtered = filtered.filter(p => {
-          if (currentCategory === 'Laptops') return p.sku.startsWith('LAPTOP');
-          if (currentCategory === 'Phones') return p.sku.startsWith('PHONE') || p.sku.startsWith('TABL');
-          if (currentCategory === 'Audio') return p.sku.startsWith('AUDIO') || p.sku.startsWith('SPKR');
-          if (currentCategory === 'Peripherals') return p.sku.startsWith('KEYB') || p.sku.startsWith('MOUS') || p.sku.startsWith('WATCH') || p.sku.startsWith('GAME') || p.sku.startsWith('DRON') || p.sku.startsWith('CHRG') || p.sku.startsWith('STRE');
-          if (currentCategory === 'Displays') return p.sku.startsWith('DISP');
-          return true;
+          if (p.category && p.category.toLowerCase() === catLow) return true;
+          if (catLow === 'laptops') return p.sku.startsWith('LAPTOP');
+          if (catLow === 'phones') return p.sku.startsWith('PHONE') || p.sku.startsWith('TABL');
+          if (catLow === 'audio') return p.sku.startsWith('AUDIO') || p.sku.startsWith('SPKR');
+          if (catLow === 'peripherals') return p.sku.startsWith('KEYB') || p.sku.startsWith('MOUS');
+          if (catLow === 'displays') return p.sku.startsWith('DISP');
+          if (catLow === 'gaming') return p.sku.startsWith('GAME') || p.sku.startsWith('DRON');
+          if (catLow === 'accessories') return p.sku.startsWith('CHRG') || p.sku.startsWith('STRE') || p.sku.startsWith('WATCH');
+          return false;
         });
       }
 
@@ -3864,7 +3943,11 @@ PORTAL_HTML = """<!DOCTYPE html>
         filtered.sort((a, b) => Number(b.price) - Number(a.price));
       } else if (currentSort === 'rating-desc') {
         filtered.sort((a, b) => {
-          const rA = Number(getProductRating(a.sku).rating);
+          const rA = Number(a.rating || getProductRating(a.sku).rating);
+          const rB = Number(b.rating || getProductRating(b.sku).rating);
+          return rB - rA;
+        });
+      }
           const rB = Number(getProductRating(b.sku).rating);
           return rB - rA;
         });
@@ -3947,41 +4030,28 @@ PORTAL_HTML = """<!DOCTYPE html>
         });
         const cart = await res.json();
         const items = cart.items || [];
-        const rawTotal = Number(cart.total || 0);
-
-        let discount = 0;
-        if (appliedCoupon) {
-          if (appliedCoupon.type === 'percent') {
-            discount = Math.round(rawTotal * (appliedCoupon.value / 100));
-          } else if (appliedCoupon.type === 'flat') {
-            if (rawTotal >= (appliedCoupon.minOrder || 0)) {
-              discount = appliedCoupon.value;
-            } else {
-              appliedCoupon = null;
-              localStorage.removeItem('ecom_coupon');
-            }
-          }
-        }
-        discount = Math.min(discount, rawTotal);
-        const finalDue = Math.max(0, rawTotal - discount);
+        const subtotal = Number(cart.subtotal || cart.total || 0);
+        const discount = Number(cart.discount || 0);
+        const finalDue = Number(cart.total || (subtotal - discount));
+        const coupon = cart.coupon;
 
         document.getElementById('cartBadge').textContent = items.reduce((acc, i) => acc + i.quantity, 0);
 
         const subtotalEl = document.getElementById('cartSubtotalPrice');
-        if (subtotalEl) subtotalEl.textContent = `₹${rawTotal.toLocaleString('en-IN')}`;
+        if (subtotalEl) subtotalEl.textContent = `₹${subtotal.toLocaleString('en-IN')}`;
 
         const discRow = document.getElementById('cartDiscountRow');
         const discLabel = document.getElementById('cartDiscountLabel');
         const discAmount = document.getElementById('cartDiscountAmount');
         const coupBadge = document.getElementById('couponActiveBadge');
 
-        if (discount > 0 && appliedCoupon) {
+        if (discount > 0 && coupon) {
           if (discRow) discRow.style.display = 'flex';
-          if (discLabel) discLabel.textContent = `🏷️ Coupon (${appliedCoupon.code})`;
+          if (discLabel) discLabel.innerHTML = `🏷️ Coupon (${coupon.code}) <button onclick="removeCoupon()" style="background: transparent; border: none; color: #ff007f; cursor: pointer; font-size: 0.72rem; font-weight: 700; margin-left: 0.35rem; text-decoration: underline;">[✕ Remove]</button>`;
           if (discAmount) discAmount.textContent = `-₹${discount.toLocaleString('en-IN')}`;
           if (coupBadge) {
             coupBadge.style.display = 'inline-block';
-            coupBadge.textContent = `${appliedCoupon.code} (-₹${discount.toLocaleString('en-IN')})`;
+            coupBadge.textContent = `${coupon.code} (-₹${discount.toLocaleString('en-IN')})`;
           }
         } else {
           if (discRow) discRow.style.display = 'none';

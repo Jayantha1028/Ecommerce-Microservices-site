@@ -13,10 +13,45 @@ from sqlalchemy.orm import Session
 from client import fetch_product, get_http_client
 from config import ORDER_SERVICE_URL, ORDER_TIMEOUT, SERVICE_NAME
 from database import get_db
-from models import CartItem
-from schemas import CartItemAdd, CartItemUpdate, CheckoutRequest
+from models import CartCoupon, CartItem
+from schemas import ApplyCouponRequest, CartItemAdd, CartItemUpdate, CheckoutRequest
 
 router = APIRouter()
+
+PROMO_COUPONS = {
+    "CYBER20": {
+        "code": "CYBER20",
+        "description": "Cyber Launch 20% Instant Discount (Up to ₹20,000 off)",
+        "type": "PERCENT",
+        "value": Decimal("20.00"),
+        "max_discount": Decimal("20000.00"),
+        "min_order": Decimal("1000.00"),
+    },
+    "WELCOME10": {
+        "code": "WELCOME10",
+        "description": "Welcome 10% Off Your Entire Cart",
+        "type": "PERCENT",
+        "value": Decimal("10.00"),
+        "max_discount": Decimal("5000.00"),
+        "min_order": Decimal("500.00"),
+    },
+    "FLAT5000": {
+        "code": "FLAT5000",
+        "description": "Flat ₹5,000 Instant Mega Savings on Orders above ₹20,000",
+        "type": "FLAT",
+        "value": Decimal("5000.00"),
+        "max_discount": Decimal("5000.00"),
+        "min_order": Decimal("20000.00"),
+    },
+    "TECHFEST": {
+        "code": "TECHFEST",
+        "description": "Tech Fest 15% Savings on Premium Electronics",
+        "type": "PERCENT",
+        "value": Decimal("15.00"),
+        "max_discount": Decimal("12000.00"),
+        "min_order": Decimal("2000.00"),
+    },
+}
 
 
 def identity(
@@ -136,11 +171,104 @@ def view_cart(
             "available": True,
         })
 
+    # Look for applied coupon
+    cart_coupon = db.scalar(select(CartCoupon).where(CartCoupon.user_id == user_id))
+    discount_amount = Decimal("0.00")
+    coupon_info = None
+
+    if cart_coupon and total > Decimal("0.00"):
+        promo = PROMO_COUPONS.get(cart_coupon.code.upper())
+        if promo and total >= promo["min_order"]:
+            if promo["type"] == "PERCENT":
+                discount_raw = (total * promo["value"] / Decimal("100.00")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                discount_amount = min(discount_raw, promo["max_discount"]) if promo.get("max_discount") else discount_raw
+            else:
+                discount_amount = min(promo["value"], total)
+            coupon_info = {
+                "code": cart_coupon.code.upper(),
+                "description": promo["description"],
+                "discount_amount": str(discount_amount),
+            }
+        elif promo and total < promo["min_order"]:
+            coupon_info = {
+                "code": cart_coupon.code.upper(),
+                "description": f"Requires min order of ₹{promo['min_order']}",
+                "discount_amount": "0.00",
+                "ineligible": True,
+            }
+
+    final_total = max(Decimal("0.00"), total - discount_amount).quantize(Decimal("0.01"))
+
     return {
         "items": items,
-        "total": str(total.quantize(Decimal("0.01"))),
+        "subtotal": str(total.quantize(Decimal("0.01"))),
+        "discount": str(discount_amount),
+        "total": str(final_total),
+        "coupon": coupon_info,
+        "available_coupons": [
+            {"code": c["code"], "description": c["description"], "min_order": str(c["min_order"])}
+            for c in PROMO_COUPONS.values()
+        ],
         "count": len(items),
     }
+
+
+@router.post("/cart/coupon")
+def apply_coupon(
+    payload: ApplyCouponRequest,
+    db: Session = Depends(get_db),
+    who: tuple[str, str] = Depends(identity),
+) -> dict:
+    """Validate and apply a promotional discount coupon to the user's cart."""
+    user_id, _ = who
+    code = payload.code.strip().upper()
+    if code not in PROMO_COUPONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid promo code '{code}'. Available codes: {', '.join(PROMO_COUPONS.keys())}",
+        )
+
+    promo = PROMO_COUPONS[code]
+
+    # Upsert coupon for user
+    existing = db.scalar(select(CartCoupon).where(CartCoupon.user_id == user_id))
+    if existing:
+        existing.code = code
+        existing.discount_type = promo["type"]
+        existing.discount_value = promo["value"]
+        existing.max_discount = promo.get("max_discount")
+        existing.min_order_value = promo["min_order"]
+    else:
+        db.add(CartCoupon(
+            user_id=user_id,
+            code=code,
+            discount_type=promo["type"],
+            discount_value=promo["value"],
+            max_discount=promo.get("max_discount"),
+            min_order_value=promo["min_order"],
+        ))
+    db.commit()
+
+    return {
+        "status": "success",
+        "message": f"Coupon '{code}' applied successfully!",
+        "coupon": {
+            "code": code,
+            "description": promo["description"],
+        },
+    }
+
+
+@router.delete("/cart/coupon")
+def remove_coupon(
+    db: Session = Depends(get_db),
+    who: tuple[str, str] = Depends(identity),
+) -> dict:
+    """Remove any active coupon applied to the user's shopping cart."""
+    user_id, _ = who
+    db.query(CartCoupon).filter(CartCoupon.user_id == user_id).delete(synchronize_session=False)
+    db.commit()
+    return {"status": "success", "message": "Coupon removed from cart"}
 
 
 @router.put("/cart/items/{product_id}")
@@ -197,9 +325,10 @@ def clear_cart(
     db: Session = Depends(get_db),
     who: tuple[str, str] = Depends(identity),
 ) -> dict:
-    """Remove all items from the current user's shopping cart."""
+    """Remove all items and active coupon from the current user's shopping cart."""
     user_id, _role = who
     db.query(CartItem).filter(CartItem.user_id == user_id).delete(synchronize_session=False)
+    db.query(CartCoupon).filter(CartCoupon.user_id == user_id).delete(synchronize_session=False)
     db.commit()
 
     return {"message": "Cart cleared"}
@@ -218,9 +347,31 @@ def checkout(
     if not rows:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
+    # Compute subtotal and any promo discount
+    subtotal = Decimal("0.00")
+    for row in rows:
+        prod = fetch_product(row.product_id, user_id, role)
+        subtotal += Decimal(str(prod["price"])) * row.quantity
+
+    cart_coupon = db.scalar(select(CartCoupon).where(CartCoupon.user_id == user_id))
+    discount_amount = Decimal("0.00")
+    coupon_code = None
+
+    if cart_coupon and subtotal > Decimal("0.00"):
+        promo = PROMO_COUPONS.get(cart_coupon.code.upper())
+        if promo and subtotal >= promo["min_order"]:
+            if promo["type"] == "PERCENT":
+                discount_raw = (subtotal * promo["value"] / Decimal("100.00")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                discount_amount = min(discount_raw, promo["max_discount"]) if promo.get("max_discount") else discount_raw
+            else:
+                discount_amount = min(promo["value"], subtotal)
+            coupon_code = promo["code"]
+
     payload = {
         "items": [{"product_id": row.product_id, "quantity": row.quantity} for row in rows],
         "currency": details.currency.upper(),
+        "discount": str(discount_amount),
+        "coupon_code": coupon_code,
     }
 
     client = get_http_client()
@@ -251,8 +402,9 @@ def checkout(
 
     order = response.json()
 
-    # Clear cart only after Order Service confirms durable order creation
+    # Clear cart and active coupon only after Order Service confirms durable order creation
     db.query(CartItem).filter(CartItem.user_id == user_id).delete(synchronize_session=False)
+    db.query(CartCoupon).filter(CartCoupon.user_id == user_id).delete(synchronize_session=False)
     db.commit()
 
     return {

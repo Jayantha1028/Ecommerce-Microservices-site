@@ -28,6 +28,7 @@ ROUTES = (
     ("/auth", USER_AUTH_URL),
     ("/users", USER_AUTH_URL),
     ("/products", PRODUCT_SERVICE_URL),
+    ("/categories", PRODUCT_SERVICE_URL),
     ("/inventory", PRODUCT_SERVICE_URL),
     ("/cart", CART_SERVICE_URL),
     ("/orders", ORDER_SERVICE_URL),
