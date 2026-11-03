@@ -1017,6 +1017,12 @@ PORTAL_HTML = """<!DOCTYPE html>
 
       <!-- Action Buttons -->
       <div class="header-actions">
+        <!-- Developer REST API Documentation Button -->
+        <a href="/docs" target="_blank" class="nav-btn" id="headerApiDocsBtn" title="Interactive OpenAPI / Swagger REST API Explorer" style="border-color: rgba(0, 240, 255, 0.45); color: #00f0ff; font-weight: 700; background: rgba(0, 240, 255, 0.08); text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem;">
+          <span>📘</span>
+          <span>REST API</span>
+        </a>
+
         <!-- Developer Admin Console Quick Button (Always accessible for rapid developer testing) -->
         <button class="nav-btn" id="headerDevAdminBtn" onclick="openAdminAuthModal()" title="Developer Admin Console (1-Click Login)" style="border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; font-weight: 700; background: rgba(245, 158, 11, 0.08);">
           <span>⚡</span>
@@ -1274,6 +1280,45 @@ PORTAL_HTML = """<!DOCTYPE html>
               🔄 Run Crossplane Drift Audit
             </button>
             <span id="crossplaneAuditFeedback" style="font-size: 0.75rem; color: #10b981; font-weight: 700;">● Desired State Enforced</span>
+          </div>
+        </div>
+
+        <!-- Developer REST API System & Endpoints Hub Card -->
+        <div class="admin-card">
+          <h3 style="display: flex; justify-content: space-between; align-items: center;">
+            <span>🚀 REST API System & Interactive Docs</span>
+            <span class="role-badge" style="background: rgba(0, 212, 255, 0.15); color: #00d4ff; border: 1px solid #00d4ff;">OPENAPI 3.1</span>
+          </h3>
+          <div style="font-size: 0.8rem; color: #cbd5e1; margin-bottom: 0.75rem; line-height: 1.45;">
+            Explore, test, and integrate directly with the platform's unified microservices REST endpoints and health supervisors.
+          </div>
+          <div class="service-row">
+            <span><strong>Swagger UI Explorer</strong></span>
+            <a href="/docs" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 700;">Open /docs ↗</a>
+          </div>
+          <div class="service-row">
+            <span><strong>Redoc Documentation</strong></span>
+            <a href="/redoc" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 700;">Open /redoc ↗</a>
+          </div>
+          <div class="service-row">
+            <span><strong>OpenAPI Specification</strong></span>
+            <a href="/openapi.json" target="_blank" style="color: #94a3b8; text-decoration: none; font-family: var(--font-mono); font-size: 0.78rem;">/openapi.json ↗</a>
+          </div>
+          <div class="service-row">
+            <span><strong>Crossplane Drift API</strong></span>
+            <a href="/health/crossplane-drift" target="_blank" style="color: #00ffaa; text-decoration: none; font-family: var(--font-mono); font-size: 0.78rem;">/health/crossplane-drift ↗</a>
+          </div>
+          <div class="service-row">
+            <span><strong>Termination Guard API</strong></span>
+            <a href="/health/termination-protection" target="_blank" style="color: #fbbf24; text-decoration: none; font-family: var(--font-mono); font-size: 0.78rem;">/health/termination-protection ↗</a>
+          </div>
+          <div style="margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px dashed var(--card-border); display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="/docs" target="_blank" class="btn-sm" style="background: var(--primary); color: #000; font-weight: 800; padding: 0.35rem 0.75rem; text-decoration: none; border-radius: 6px;">
+              ⚡ Launch Swagger UI
+            </a>
+            <a href="/support" target="_blank" class="btn-sm" style="background: rgba(255,255,255,0.08); color: #fff; font-weight: 700; padding: 0.35rem 0.75rem; text-decoration: none; border-radius: 6px;">
+              📖 Architecture & Specs
+            </a>
           </div>
         </div>
 
@@ -1995,6 +2040,10 @@ PORTAL_HTML = """<!DOCTYPE html>
         </a>
         <a href="/privacy" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
           Legal & Privacy ↗
+        </a>
+        <a href="/docs" target="_blank" style="color: #00d4ff; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;">
+          <span>📘</span>
+          <span>REST API (/docs) ↗</span>
         </a>
         <a href="/support" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.8rem; border: 1px solid rgba(0, 240, 255, 0.35); border-radius: 6px; background: rgba(0, 240, 255, 0.08); transition: all 0.2s;">
           <span>📖</span>
