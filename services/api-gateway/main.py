@@ -19,6 +19,7 @@ import uuid
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from config import (
@@ -73,6 +74,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Enable GZip / Deflate HTTP response compression for payloads >= 1000 bytes
+app.add_middleware(
+    GZipMiddleware,
+    minimum_size=1000,
 )
 
 # Setup aggregated enterprise OpenAPI schema
@@ -551,7 +558,7 @@ async def proxy(path: str, request: Request):
     # Strip hop-by-hop and content-encoding headers from upstream response.
     response_headers = {
         k: v for k, v in upstream_response.headers.items()
-        if k.lower() not in HOP_BY_HOP_HEADERS and k.lower() not in {"content-encoding"}
+        if k.lower() not in HOP_BY_HOP_HEADERS and k.lower() not in {"content-encoding", "content-length"}
     }
     response_headers["x-correlation-id"] = correlation_id
 
