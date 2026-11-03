@@ -3947,10 +3947,6 @@ PORTAL_HTML = """<!DOCTYPE html>
           const rB = Number(b.rating || getProductRating(b.sku).rating);
           return rB - rA;
         });
-      }
-          const rB = Number(getProductRating(b.sku).rating);
-          return rB - rA;
-        });
       } else if (currentSort === 'name-asc') {
         filtered.sort((a, b) => a.name.localeCompare(b.name));
       }
