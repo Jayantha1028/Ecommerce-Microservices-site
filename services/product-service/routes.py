@@ -81,7 +81,7 @@ def list_products(
     in_stock_only: Optional[bool] = Query(default=False),
     status_filter: Optional[str] = Query(default=None, alias="status", pattern=r"^(DRAFT|PUBLISHED|UNPUBLISHED)$"),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=100),
+    limit: int = Query(default=100, ge=1, le=200),
     db: Session = Depends(get_db),
 ) -> dict:
     """List products with search, category filtering, price bounds, sorting, and Redis caching."""

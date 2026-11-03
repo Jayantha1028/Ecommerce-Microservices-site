@@ -240,7 +240,7 @@ PORTAL_HTML = """<!DOCTYPE html>
     main {
       max-width: 1280px;
       margin: 0 auto;
-      padding: 2rem 1.5rem;
+      padding: 1rem 1.5rem;
       flex: 1;
       width: 100%;
     }
@@ -253,28 +253,28 @@ PORTAL_HTML = """<!DOCTYPE html>
                   linear-gradient(135deg, #030a1c 0%, #061838 50%, #032047 100%);
       color: #ffffff;
       border: 1px solid rgba(56, 189, 248, 0.28);
-      border-radius: 20px;
-      padding: 2.75rem 2.5rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 20px 45px -12px rgba(2, 132, 199, 0.35);
+      border-radius: 14px;
+      padding: 0.85rem 1.35rem;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 10px 25px -8px rgba(2, 132, 199, 0.35);
       overflow: hidden;
     }
     .hero-pill-tag {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.4rem;
       background: rgba(14, 165, 233, 0.12);
       border: 1px solid rgba(56, 189, 248, 0.35);
       backdrop-filter: blur(8px);
       color: #38bdf8;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      padding: 0.35rem 0.85rem;
+      padding: 0.2rem 0.65rem;
       border-radius: 9999px;
-      margin-bottom: 1rem;
-      box-shadow: 0 0 14px rgba(56, 189, 248, 0.2);
+      margin-bottom: 0.25rem;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
     }
     .live-status-dot {
       width: 7px;
@@ -289,39 +289,34 @@ PORTAL_HTML = """<!DOCTYPE html>
       50% { opacity: 0.5; transform: scale(1.25); box-shadow: 0 0 16px #38bdf8; }
     }
     .hero-title {
-      font-size: 2.15rem;
-      font-weight: 850;
-      letter-spacing: -0.035em;
-      line-height: 1.2;
-      margin-bottom: 0.75rem;
+      font-size: 1.3rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      line-height: 1.25;
+      margin-bottom: 0;
       background: linear-gradient(180deg, #ffffff 40%, #7dd3fc 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       max-width: 760px;
     }
     .hero-subtitle {
-      color: #7dd3fc;
-      font-size: 0.96rem;
-      line-height: 1.55;
-      max-width: 660px;
-      margin-bottom: 1.75rem;
-      opacity: 0.88;
+      display: none;
     }
     .hero-features {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.75rem;
+      gap: 0.5rem;
       align-items: center;
     }
     .hero-feature-item {
       display: inline-flex;
       align-items: center;
-      gap: 0.45rem;
+      gap: 0.35rem;
       background: rgba(14, 165, 233, 0.08);
       border: 1px solid rgba(56, 189, 248, 0.2);
-      padding: 0.4rem 0.85rem;
-      border-radius: 8px;
-      font-size: 0.8rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      font-size: 0.76rem;
       font-weight: 600;
       color: #e0f2fe;
       backdrop-filter: blur(4px);
@@ -1017,12 +1012,6 @@ PORTAL_HTML = """<!DOCTYPE html>
 
       <!-- Action Buttons -->
       <div class="header-actions">
-        <!-- Developer Admin Console Quick Button (Always accessible for rapid developer testing) -->
-        <button class="nav-btn" id="headerDevAdminBtn" onclick="openAdminAuthModal()" title="Developer Admin Console (1-Click Login)" style="border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; font-weight: 700; background: rgba(245, 158, 11, 0.08);">
-          <span>⚡</span>
-          <span>Dev Admin</span>
-        </button>
-
         <!-- Hidden Admin Indicator (Rendered ONLY when administrative access is unlocked) -->
         <button class="nav-btn" id="adminSessionBtn" style="display: none; background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; color: #f59e0b;" onclick="lockAndExitAdmin()">
           <span>🔒</span>
@@ -1081,28 +1070,31 @@ PORTAL_HTML = """<!DOCTYPE html>
     <div class="user-store-container" id="userStoreView">
       <section class="hero-user">
         <div class="hero-content">
-          <div class="hero-pill-tag">
-            <span class="live-status-dot"></span>
-            <span>Flagship Electronics • Curated 2026 Collection</span>
-          </div>
-          <h1 class="hero-title">Engineered for Performance. Crafted for Creators.</h1>
-          <p class="hero-subtitle">Discover next-generation workstations, spatial audio, and smart devices with instant dispatch & 256-bit encrypted checkout.</p>
-          <div class="hero-features">
-            <div class="hero-feature-item">
-              <span class="feature-icon">⚡</span>
-              <span>Same-Day Dispatch</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+              <div class="hero-pill-tag">
+                <span class="live-status-dot"></span>
+                <span>Flagship Electronics • Curated 2026 Collection</span>
+              </div>
+              <h1 class="hero-title">Engineered for Performance. Crafted for Creators.</h1>
             </div>
-            <div class="hero-feature-item">
-              <span class="feature-icon">🛡️</span>
-              <span>2-Year Official Warranty</span>
-            </div>
-            <div class="hero-feature-item">
-              <span class="feature-icon">🔄</span>
-              <span>30-Day Free Returns</span>
-            </div>
-            <div class="hero-feature-item">
-              <span class="feature-icon">🔒</span>
-              <span>Bank-Grade UPI & Card Security</span>
+            <div class="hero-features">
+              <div class="hero-feature-item">
+                <span class="feature-icon">⚡</span>
+                <span>Same-Day Dispatch</span>
+              </div>
+              <div class="hero-feature-item">
+                <span class="feature-icon">🛡️</span>
+                <span>2-Year Official Warranty</span>
+              </div>
+              <div class="hero-feature-item">
+                <span class="feature-icon">🔄</span>
+                <span>30-Day Free Returns</span>
+              </div>
+              <div class="hero-feature-item">
+                <span class="feature-icon">🔒</span>
+                <span>Bank-Grade UPI & Card Security</span>
+              </div>
             </div>
           </div>
         </div>
@@ -2058,10 +2050,10 @@ PORTAL_HTML = """<!DOCTYPE html>
         <a href="/privacy" target="_blank" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
           Legal & Privacy ↗
         </a>
-        <a href="/docs" target="_blank" style="color: #00d4ff; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem;">
-          <span>📘</span>
-          <span>REST API (/docs) ↗</span>
-        </a>
+        <button class="nav-btn" id="footerDevAdminBtn" onclick="openAdminAuthModal()" title="Developer Admin Console (1-Click Login)" style="border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; font-weight: 700; background: rgba(245, 158, 11, 0.08); padding: 0.35rem 0.8rem; font-size: 0.82rem; cursor: pointer;">
+          <span>⚡</span>
+          <span>Dev Admin</span>
+        </button>
         <a href="/support" target="_blank" style="color: #00f0ff; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.8rem; border: 1px solid rgba(0, 240, 255, 0.35); border-radius: 6px; background: rgba(0, 240, 255, 0.08); transition: all 0.2s;">
           <span>📖</span>
           <span>Support & Docs ↗</span>
@@ -3444,7 +3436,7 @@ PORTAL_HTML = """<!DOCTYPE html>
     // Fetch products
     async function fetchCatalog() {
       try {
-        const res = await fetch('/products');
+        const res = await fetch('/products?limit=100');
         const json = await res.json();
         allProducts = json.data || [];
         const badge = document.getElementById('productCountBadge');
