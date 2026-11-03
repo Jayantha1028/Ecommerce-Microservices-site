@@ -1017,12 +1017,6 @@ PORTAL_HTML = """<!DOCTYPE html>
 
       <!-- Action Buttons -->
       <div class="header-actions">
-        <!-- Developer REST API Documentation Button -->
-        <a href="/docs" target="_blank" class="nav-btn" id="headerApiDocsBtn" title="Interactive OpenAPI / Swagger REST API Explorer" style="border-color: rgba(0, 240, 255, 0.45); color: #00f0ff; font-weight: 700; background: rgba(0, 240, 255, 0.08); text-decoration: none; display: inline-flex; align-items: center; gap: 0.35rem;">
-          <span>📘</span>
-          <span>REST API</span>
-        </a>
-
         <!-- Developer Admin Console Quick Button (Always accessible for rapid developer testing) -->
         <button class="nav-btn" id="headerDevAdminBtn" onclick="openAdminAuthModal()" title="Developer Admin Console (1-Click Login)" style="border-color: rgba(245, 158, 11, 0.45); color: #fbbf24; font-weight: 700; background: rgba(245, 158, 11, 0.08);">
           <span>⚡</span>
@@ -1659,6 +1653,29 @@ PORTAL_HTML = """<!DOCTYPE html>
         </button>
       </form>
       <div id="adminAuthError" style="color: #ef4444; font-size: 0.8rem; margin-top: 0.75rem; display: none;"></div>
+
+      <!-- REST API Quick Developer Section -->
+      <div style="background: rgba(0, 212, 255, 0.05); border: 1px dashed rgba(0, 212, 255, 0.3); border-radius: 10px; padding: 0.75rem 0.85rem; margin-top: 1.25rem; text-align: left;">
+        <div style="font-size: 0.72rem; font-weight: 800; color: #00f0ff; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; display: flex; justify-content: space-between; align-items: center;">
+          <span>📘 REST API Explorer & System Docs</span>
+          <span style="font-size: 0.65rem; background: rgba(0,212,255,0.2); color: #00f0ff; padding: 0.1rem 0.35rem; border-radius: 4px; font-weight: 800;">FASTAPI</span>
+        </div>
+        <p style="font-size: 0.76rem; color: #94a3b8; margin-bottom: 0.65rem;">Direct developer access to OpenAPI schemas, live endpoints testing, and health monitors:</p>
+        <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+          <a href="/docs" target="_blank" style="font-size: 0.75rem; color: #00f0ff; text-decoration: none; background: rgba(0,212,255,0.12); padding: 0.3rem 0.65rem; border-radius: 6px; font-weight: 700; border: 1px solid rgba(0,212,255,0.35); display: inline-flex; align-items: center; gap: 0.3rem;">
+            <span>⚡</span>
+            <span>Swagger UI (/docs) ↗</span>
+          </a>
+          <a href="/redoc" target="_blank" style="font-size: 0.75rem; color: #38bdf8; text-decoration: none; background: rgba(56,189,248,0.1); padding: 0.3rem 0.65rem; border-radius: 6px; font-weight: 700; border: 1px solid rgba(56,189,248,0.3); display: inline-flex; align-items: center; gap: 0.3rem;">
+            <span>📕</span>
+            <span>Redoc ↗</span>
+          </a>
+          <a href="/openapi.json" target="_blank" style="font-size: 0.75rem; color: #cbd5e1; text-decoration: none; background: rgba(255,255,255,0.06); padding: 0.3rem 0.65rem; border-radius: 6px; font-weight: 700; border: 1px solid var(--card-border); display: inline-flex; align-items: center; gap: 0.3rem;">
+            <span>📄</span>
+            <span>OpenAPI JSON ↗</span>
+          </a>
+        </div>
+      </div>
     </div>
   </div>
 
