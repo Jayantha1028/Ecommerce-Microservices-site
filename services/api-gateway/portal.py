@@ -741,6 +741,20 @@ PORTAL_HTML = """<!DOCTYPE html>
       box-shadow: -10px 0 35px rgba(0, 0, 0, 0.25);
     }
     .cart-drawer.active { right: 0; }
+    .cart-backdrop {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      z-index: 205;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .cart-backdrop.active {
+      display: block;
+      opacity: 1;
+    }
     .cart-header {
       padding: 1.25rem 1.5rem;
       border-bottom: 1px solid var(--card-border);
@@ -1810,10 +1824,11 @@ PORTAL_HTML = """<!DOCTYPE html>
   </div>
 
   <!-- Shopping Cart Slide-Over -->
+  <div class="cart-backdrop" id="cartBackdrop" onclick="closeCartDrawer()"></div>
   <aside class="cart-drawer" id="cartDrawer">
     <div class="cart-header">
       <h2 style="font-size: 1.25rem;">🛍️ Shopping Cart</h2>
-      <button class="modal-close" onclick="toggleCart()" style="position: static;">&times;</button>
+      <button class="modal-close" onclick="closeCartDrawer()" style="position: static;">&times;</button>
     </div>
     <div class="cart-items-list" id="cartItemsList">
       <!-- Items -->
@@ -4057,111 +4072,294 @@ PORTAL_HTML = """<!DOCTYPE html>
       applyFiltersAndSort();
     }
 
-    // Cart Drawer
+    // Cart Slide-Over Management
+    function openCartDrawer() {
+      const drawer = document.getElementById('cartDrawer');
+      const backdrop = document.getElementById('cartBackdrop');
+      if (drawer) drawer.classList.add('active');
+      if (backdrop) backdrop.classList.add('active');
+      loadCart();
+    }
+
+    function closeCartDrawer() {
+      const drawer = document.getElementById('cartDrawer');
+      const backdrop = document.getElementById('cartBackdrop');
+      if (drawer) drawer.classList.remove('active');
+      if (backdrop) backdrop.classList.remove('active');
+    }
+
     function toggleCart() {
-      document.getElementById('cartDrawer').classList.toggle('active');
-      if (document.getElementById('cartDrawer').classList.contains('active')) {
-        loadCart();
+      const drawer = document.getElementById('cartDrawer');
+      if (drawer && drawer.classList.contains('active')) {
+        closeCartDrawer();
+      } else {
+        openCartDrawer();
       }
     }
 
-    async function addToCart(productId) {
-      if (!customerToken) {
-        openLoginModal();
+    function showCartToast(msg) {
+      const existing = document.getElementById('cartNotificationToast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.id = 'cartNotificationToast';
+      toast.innerHTML = `<span style="margin-right: 0.5rem; font-size: 1.1rem;">🛒</span> <span>${msg}</span>`;
+      toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #050b18;
+        border: 1px solid #00f0ff;
+        color: #00f0ff;
+        padding: 0.75rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.88rem;
+        box-shadow: 0 10px 30px rgba(0, 240, 255, 0.25);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    function renderCartUI(cart) {
+      if (!cart) return;
+      const items = cart.items || [];
+      const subtotal = Number(cart.subtotal || cart.total || 0);
+      const discount = Number(cart.discount || 0);
+      const finalDue = Number(cart.total || (subtotal - discount));
+      const coupon = cart.coupon;
+
+      const totalItemsCount = items.reduce((acc, i) => acc + (i.quantity || 1), 0);
+      const badge = document.getElementById('cartBadge');
+      if (badge) badge.textContent = totalItemsCount;
+
+      const subtotalEl = document.getElementById('cartSubtotalPrice');
+      if (subtotalEl) subtotalEl.textContent = `₹${subtotal.toLocaleString('en-IN')}`;
+
+      const discRow = document.getElementById('cartDiscountRow');
+      const discLabel = document.getElementById('cartDiscountLabel');
+      const discAmount = document.getElementById('cartDiscountAmount');
+      const coupBadge = document.getElementById('couponActiveBadge');
+
+      if (discount > 0 && coupon) {
+        if (discRow) discRow.style.display = 'flex';
+        if (discLabel) discLabel.innerHTML = `🏷️ Coupon (${coupon.code}) <button onclick="removeCoupon()" style="background: transparent; border: none; color: #ff007f; cursor: pointer; font-size: 0.72rem; font-weight: 700; margin-left: 0.35rem; text-decoration: underline;">[✕ Remove]</button>`;
+        if (discAmount) discAmount.textContent = `-₹${discount.toLocaleString('en-IN')}`;
+        if (coupBadge) {
+          coupBadge.style.display = 'inline-block';
+          coupBadge.textContent = `${coupon.code} (-₹${discount.toLocaleString('en-IN')})`;
+        }
+      } else {
+        if (discRow) discRow.style.display = 'none';
+        if (coupBadge) coupBadge.style.display = 'none';
+      }
+
+      const totalEl = document.getElementById('cartTotalPrice');
+      if (totalEl) totalEl.textContent = `₹${finalDue.toLocaleString('en-IN')}`;
+
+      const list = document.getElementById('cartItemsList');
+      const chkBtn = document.getElementById('checkoutBtn');
+
+      if (items.length === 0) {
+        if (list) {
+          list.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); margin-top: 3.5rem; padding: 1rem;">
+              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🛍️</div>
+              <div style="font-weight: 700; color: #ffffff; margin-bottom: 0.35rem;">Your Cart is Empty</div>
+              <p style="font-size: 0.85rem; margin-bottom: 1.25rem;">Explore our high-performance cyber gear and add items to your cart.</p>
+              <button onclick="closeCartDrawer()" class="btn-sm" style="background: var(--primary); padding: 0.5rem 1rem; border-radius: 6px; font-weight: 700;">Explore Catalog</button>
+            </div>
+          `;
+        }
+        if (chkBtn) chkBtn.disabled = true;
         return;
       }
-      try {
-        await fetch('/cart/items', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${customerToken}`
-          },
-          body: JSON.stringify({ product_id: productId, quantity: 1 })
-        });
-        loadCart();
-        toggleCart();
-      } catch (err) {
-        alert('Could not add product: ' + err.message);
+
+      if (chkBtn) chkBtn.disabled = false;
+      if (list) {
+        list.innerHTML = items.map(i => {
+          if (i.available === false) {
+            return `
+              <div class="cart-card" style="opacity: 0.75; border-color: rgba(239, 68, 68, 0.4); display: flex; justify-content: space-between; align-items: center; padding: 0.85rem; background: var(--input-bg); border-radius: 10px; margin-bottom: 0.65rem;">
+                <div>
+                  <div style="font-weight: 700; color: #ef4444; font-size: 0.88rem;">⚠️ ${i.name || 'Unavailable Item'}</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">${i.note || 'No longer available in catalog'}</div>
+                </div>
+                <button class="btn-sm" style="background: #ef4444; color: white;" onclick="removeItem('${i.product_id}')">Remove</button>
+              </div>
+            `;
+          }
+          return `
+            <div class="cart-card" style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem; background: var(--input-bg); border: 1px solid var(--card-border); border-radius: 10px; margin-bottom: 0.65rem;">
+              <div style="flex: 1; padding-right: 0.75rem;">
+                <div style="font-weight: 700; color: #ffffff; font-size: 0.92rem; margin-bottom: 0.2rem;">${i.name || 'Product'}</div>
+                <div style="font-size: 0.82rem; color: #00f0ff; font-weight: 700;">₹${Number(i.price || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; background: rgba(255,255,255,0.06); border: 1px solid var(--card-border); border-radius: 6px; overflow: hidden;">
+                  <button onclick="updateCartItemQuantity('${i.product_id}', ${i.quantity - 1})" style="background: none; border: none; color: #ffffff; padding: 0.25rem 0.55rem; cursor: pointer; font-size: 0.85rem; font-weight: 800;">−</button>
+                  <span style="font-family: var(--font-mono); font-size: 0.82rem; font-weight: 800; min-width: 22px; text-align: center; color: #ffffff;">${i.quantity}</span>
+                  <button onclick="updateCartItemQuantity('${i.product_id}', ${i.quantity + 1})" style="background: none; border: none; color: #ffffff; padding: 0.25rem 0.55rem; cursor: pointer; font-size: 0.85rem; font-weight: 800;">+</button>
+                </div>
+                <button class="btn-sm" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; padding: 0.35rem 0.6rem; border-radius: 6px; cursor: pointer;" title="Remove item" onclick="removeItem('${i.product_id}')">🗑️</button>
+              </div>
+            </div>
+          `;
+        }).join('');
       }
     }
 
     async function loadCart() {
       if (!customerToken) {
-        document.getElementById('cartBadge').textContent = '0';
-        document.getElementById('cartTotalPrice').textContent = '₹0.00';
+        await selectLogin('CUSTOMER');
+      }
+      if (!customerToken) {
+        const badge = document.getElementById('cartBadge');
+        if (badge) badge.textContent = '0';
+        const totalEl = document.getElementById('cartTotalPrice');
+        if (totalEl) totalEl.textContent = '₹0.00';
         const list = document.getElementById('cartItemsList');
         if (list) {
-          list.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: 3rem;">Please sign in to view your cart.</div>';
+          list.innerHTML = `
+            <div style="text-align: center; color: var(--text-muted); margin-top: 3rem; padding: 1rem;">
+              <div style="font-size: 2rem; margin-bottom: 0.75rem;">🔒</div>
+              <div style="font-weight: 700; margin-bottom: 0.5rem; color: #ffffff;">Authentication Required</div>
+              <p style="font-size: 0.85rem; margin-bottom: 1.25rem;">Sign in or use 1-click guest access to view your shopping cart.</p>
+              <button onclick="selectLogin('CUSTOMER')" class="btn-sm" style="background: var(--primary); padding: 0.6rem 1.25rem; font-weight: 800; border-radius: 8px;">⚡ 1-Click Guest Sign In</button>
+            </div>
+          `;
         }
         const chkBtn = document.getElementById('checkoutBtn');
         if (chkBtn) chkBtn.disabled = true;
         return;
       }
+
       try {
         const res = await fetch('/cart', {
           headers: { 'Authorization': `Bearer ${customerToken}` }
         });
-        const cart = await res.json();
-        const items = cart.items || [];
-        const subtotal = Number(cart.subtotal || cart.total || 0);
-        const discount = Number(cart.discount || 0);
-        const finalDue = Number(cart.total || (subtotal - discount));
-        const coupon = cart.coupon;
 
-        document.getElementById('cartBadge').textContent = items.reduce((acc, i) => acc + i.quantity, 0);
-
-        const subtotalEl = document.getElementById('cartSubtotalPrice');
-        if (subtotalEl) subtotalEl.textContent = `₹${subtotal.toLocaleString('en-IN')}`;
-
-        const discRow = document.getElementById('cartDiscountRow');
-        const discLabel = document.getElementById('cartDiscountLabel');
-        const discAmount = document.getElementById('cartDiscountAmount');
-        const coupBadge = document.getElementById('couponActiveBadge');
-
-        if (discount > 0 && coupon) {
-          if (discRow) discRow.style.display = 'flex';
-          if (discLabel) discLabel.innerHTML = `🏷️ Coupon (${coupon.code}) <button onclick="removeCoupon()" style="background: transparent; border: none; color: #ff007f; cursor: pointer; font-size: 0.72rem; font-weight: 700; margin-left: 0.35rem; text-decoration: underline;">[✕ Remove]</button>`;
-          if (discAmount) discAmount.textContent = `-₹${discount.toLocaleString('en-IN')}`;
-          if (coupBadge) {
-            coupBadge.style.display = 'inline-block';
-            coupBadge.textContent = `${coupon.code} (-₹${discount.toLocaleString('en-IN')})`;
+        if (res.status === 401) {
+          console.warn('Cart token expired or invalid, renewing session...');
+          customerToken = null;
+          currentUserEmail = null;
+          localStorage.removeItem('novatech_token');
+          localStorage.removeItem('novatech_email');
+          await selectLogin('CUSTOMER');
+          if (customerToken) {
+            return loadCart();
           }
-        } else {
-          if (discRow) discRow.style.display = 'none';
-          if (coupBadge) coupBadge.style.display = 'none';
         }
 
-        document.getElementById('cartTotalPrice').textContent = `₹${finalDue.toLocaleString('en-IN')}`;
-        
-        const list = document.getElementById('cartItemsList');
-        if (items.length === 0) {
-          list.innerHTML = '<div style="text-align: center; color: var(--text-muted); margin-top: 3rem;">Your cart is empty.</div>';
-          document.getElementById('checkoutBtn').disabled = true;
+        const cart = await res.json();
+        renderCartUI(cart);
+      } catch (err) {
+        console.error('loadCart error:', err);
+      }
+    }
+
+    async function addToCart(productId, qty = 1) {
+      if (!customerToken) {
+        await selectLogin('CUSTOMER');
+      }
+      if (!customerToken) {
+        openLoginModal();
+        return;
+      }
+
+      try {
+        const res = await fetch('/cart/items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${customerToken}`
+          },
+          body: JSON.stringify({ product_id: productId, quantity: qty })
+        });
+
+        if (res.status === 401) {
+          console.warn('Session expired on addToCart, refreshing...');
+          customerToken = null;
+          currentUserEmail = null;
+          localStorage.removeItem('novatech_token');
+          localStorage.removeItem('novatech_email');
+          await selectLogin('CUSTOMER');
+          if (customerToken) {
+            return addToCart(productId, qty);
+          } else {
+            openLoginModal();
+            return;
+          }
+        }
+
+        const data = await res.json();
+        if (!res.ok) {
+          alert('Could not add product to cart: ' + (data.detail || data.message || 'Unknown error'));
           return;
         }
 
-        document.getElementById('checkoutBtn').disabled = false;
-        list.innerHTML = items.map(i => `
-          <div class="cart-card">
-            <div>
-              <div style="font-weight: 700;">${i.name}</div>
-              <div style="font-size: 0.85rem; color: var(--text-muted);">₹${Number(i.price).toLocaleString('en-IN')} × ${i.quantity}</div>
-            </div>
-            <button class="btn-sm" style="background: #ef4444;" onclick="removeItem('${i.product_id}')">Remove</button>
-          </div>
-        `).join('');
+        showCartToast('Added to Cart! 🛒');
+        await loadCart();
+        openCartDrawer();
       } catch (err) {
-        console.error(err);
+        console.error('addToCart error:', err);
+        alert('Could not add product: ' + err.message);
+      }
+    }
+
+    async function updateCartItemQuantity(productId, quantity) {
+      if (quantity <= 0) {
+        return removeItem(productId);
+      }
+      try {
+        const res = await fetch(`/cart/items/${productId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${customerToken}`
+          },
+          body: JSON.stringify({ quantity })
+        });
+        if (res.status === 401) {
+          customerToken = null;
+          localStorage.removeItem('novatech_token');
+          await selectLogin('CUSTOMER');
+          if (customerToken) return updateCartItemQuantity(productId, quantity);
+        }
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.detail || 'Could not update item quantity');
+        }
+        await loadCart();
+      } catch (err) {
+        console.error('Update quantity error:', err);
       }
     }
 
     async function removeItem(productId) {
-      await fetch(`/cart/items/${productId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${customerToken}` }
-      });
-      loadCart();
+      try {
+        const res = await fetch(`/cart/items/${productId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${customerToken}` }
+        });
+        if (res.status === 401) {
+          customerToken = null;
+          localStorage.removeItem('novatech_token');
+          await selectLogin('CUSTOMER');
+          if (customerToken) return removeItem(productId);
+        }
+        await loadCart();
+      } catch (err) {
+        console.error('removeItem error:', err);
+      }
     }
 
     let currentPendingOrder = null;
@@ -4232,6 +4430,20 @@ PORTAL_HTML = """<!DOCTYPE html>
           body: JSON.stringify({ currency: 'INR' })
         });
 
+        if (cRes.status === 401) {
+          customerToken = null;
+          localStorage.removeItem('novatech_token');
+          await selectLogin('CUSTOMER');
+          if (customerToken) {
+            btn.disabled = false;
+            btn.textContent = '💳 Choose Payment Method & Pay';
+            return initiateCheckout();
+          } else {
+            openLoginModal();
+            return;
+          }
+        }
+
         const cData = await cRes.json();
 
         if (!cRes.ok || !cData.order) {
@@ -4247,8 +4459,8 @@ PORTAL_HTML = """<!DOCTYPE html>
         }
 
         // Close cart drawer
-        toggleCart();
-        loadCart();
+        closeCartDrawer();
+        await loadCart();
 
         // Immediately open the Payment Method selection modal!
         clearPayError();
@@ -4349,14 +4561,32 @@ PORTAL_HTML = """<!DOCTYPE html>
       }
     }
 
-    // Initialize customer authentication session
-    if (customerToken && currentUserEmail) {
-      updateAuthUI();
-      loadCart();
-    } else {
-      // Auto-connect as active demo customer for seamless out-of-the-box browsing
-      selectLogin('CUSTOMER');
+    async function validateOrRenewCustomerSession() {
+      if (customerToken) {
+        try {
+          const res = await fetch('/cart', {
+            headers: { 'Authorization': `Bearer ${customerToken}` }
+          });
+          if (res.ok) {
+            updateAuthUI();
+            const cart = await res.json();
+            renderCartUI(cart);
+            return;
+          }
+        } catch (e) {
+          console.warn('Session check failed:', e);
+        }
+        // Stale or invalid token in localStorage
+        customerToken = null;
+        currentUserEmail = null;
+        localStorage.removeItem('novatech_token');
+        localStorage.removeItem('novatech_email');
+      }
+      await selectLogin('CUSTOMER');
     }
+
+    // Initialize customer authentication session with automatic validation & renewal
+    validateOrRenewCustomerSession();
     fetchCatalog();
     updateWishlistBadge();
 

@@ -349,9 +349,24 @@ def checkout(
 
     # Compute subtotal and any promo discount
     subtotal = Decimal("0.00")
+    stale_found = False
     for row in rows:
-        prod = fetch_product(row.product_id, user_id, role)
-        subtotal += Decimal(str(prod["price"])) * row.quantity
+        try:
+            prod = fetch_product(row.product_id, user_id, role)
+            subtotal += Decimal(str(prod["price"])) * row.quantity
+        except HTTPException as exc:
+            if exc.status_code == 404:
+                db.delete(row)
+                stale_found = True
+            else:
+                raise
+
+    if stale_found:
+        db.commit()
+        raise HTTPException(
+            status_code=409,
+            detail="Some items in your cart are no longer available and were removed. Please review your updated cart and try checkout again.",
+        )
 
     cart_coupon = db.scalar(select(CartCoupon).where(CartCoupon.user_id == user_id))
     discount_amount = Decimal("0.00")
