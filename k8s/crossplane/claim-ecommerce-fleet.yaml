@@ -1,0 +1,11 @@
+apiVersion: ecommerce.platform.io/v1alpha1
+kind: ContainerFleetClaim
+metadata:
+  name: production-ecommerce-fleet
+  namespace: ecommerce
+spec:
+  desiredState: "RUNNING"
+  driftDetectionIntervalSeconds: 15
+  keepAliveUntilClosed: true
+  reconciliationPolicy: "ContinuousSelfHealing"
+  gracefulDrainSeconds: 30

@@ -147,6 +147,23 @@ def run_suite() -> int:
     status, body = request_json("GET", "/products", expected_status=200)
     log_test("Public Route /products Accessible Without Token", status == 200)
 
+    # Crossplane Drift Monitoring & Keep-Alive Probes
+    status, cp_drift = request_json("GET", "/health/crossplane-drift", expected_status=200)
+    log_test(
+        "Crossplane 12-Container Desired Fleet Alignment",
+        status == 200 and cp_drift.get("summary", {}).get("desired_containers_count") == 12,
+        f"Status: {cp_drift.get('status')}",
+    )
+    log_test(
+        "Crossplane Container Keep-Alive Guard Active",
+        cp_drift.get("keep_alive_until_closed") is True and cp_drift.get("app_lifecycle") == "ACTIVE",
+    )
+    status, cp_rec = request_json("POST", "/health/crossplane-drift/reconcile", expected_status=200)
+    log_test(
+        "Crossplane Reconciler Self-Healing Sweep",
+        status == 200 and cp_rec.get("status") in {"SYNCHRONIZED", "RECONCILING"},
+    )
+
     # -----------------------------------------------------------------
     # TEST GROUP 2: Existing Data Preservation (LAPTOP-001)
     # -----------------------------------------------------------------

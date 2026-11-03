@@ -1230,6 +1230,39 @@ PORTAL_HTML = """<!DOCTYPE html>
           </div>
         </div>
 
+        <!-- Crossplane Continuous Drift Detection & Self-Healing Guard Card -->
+        <div class="admin-card">
+          <h3 style="display: flex; justify-content: space-between; align-items: center;">
+            <span>🌐 Crossplane Drift & Self-Healing</span>
+            <span class="role-badge" id="crossplaneDriftBadge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; font-weight: 800; box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);">SYNCHRONIZED</span>
+          </h3>
+          <div style="font-size: 0.8rem; color: #cbd5e1; margin-bottom: 0.75rem; line-height: 1.45;">
+            Crossplane control plane loop continuously comparing Desired State (Spec) vs Observed State (Status) to auto-reconcile container drift until app is closed.
+          </div>
+          <div class="service-row">
+            <span><strong>Reconciliation Scope</strong></span>
+            <span style="color: #10b981; font-weight: 700;">12 Containers Guarded</span>
+          </div>
+          <div class="service-row">
+            <span><strong>Keep-Alive Enforcement</strong></span>
+            <span style="color: #00f0ff; font-weight: 700;">✅ Active Until App Closed</span>
+          </div>
+          <div class="service-row">
+            <span><strong>Reconciliation Policy</strong></span>
+            <span style="color: #10b981; font-weight: 700;">ContinuousSelfHealing (15s)</span>
+          </div>
+          <div class="service-row">
+            <span><strong>Active Drift Anomaly Delta</strong></span>
+            <span id="crossplaneDriftDeltaLabel" style="color: #10b981; font-weight: 700;">0 Anomaly Detected</span>
+          </div>
+          <div style="margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px dashed var(--card-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <button class="btn-sm" onclick="runCrossplaneDriftAudit()" id="btnRunCrossplaneAudit" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.4); font-weight: 700; padding: 0.35rem 0.75rem; cursor: pointer;">
+              🔄 Run Crossplane Drift Audit
+            </button>
+            <span id="crossplaneAuditFeedback" style="font-size: 0.75rem; color: #10b981; font-weight: 700;">● Desired State Enforced</span>
+          </div>
+        </div>
+
 
         <!-- Inventory Stock Control Table -->
         <div class="admin-card" style="grid-column: 1 / -1;">
@@ -2061,6 +2094,51 @@ PORTAL_HTML = """<!DOCTYPE html>
         if (btn) {
           btn.disabled = false;
           btn.textContent = '🛡️ Run Termination Protection Audit';
+        }
+      }
+    }
+
+    async function runCrossplaneDriftAudit() {
+      const btn = document.getElementById('btnRunCrossplaneAudit');
+      const badge = document.getElementById('crossplaneDriftBadge');
+      const delta = document.getElementById('crossplaneDriftDeltaLabel');
+      const feedback = document.getElementById('crossplaneAuditFeedback');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Scanning Drift...';
+      }
+      try {
+        const res = await fetch('/health/crossplane-drift/reconcile', { method: 'POST' });
+        const data = await res.json();
+        const drifts = data.summary ? data.summary.active_drifts_count : 0;
+        if (badge) {
+          if (drifts === 0) {
+            badge.textContent = 'SYNCHRONIZED';
+            badge.style.background = 'rgba(16, 185, 129, 0.2)';
+            badge.style.color = '#10b981';
+            badge.style.borderColor = '#10b981';
+          } else {
+            badge.textContent = 'RECONCILING';
+            badge.style.background = 'rgba(245, 158, 11, 0.2)';
+            badge.style.color = '#f59e0b';
+            badge.style.borderColor = '#f59e0b';
+          }
+        }
+        if (delta) {
+          delta.textContent = `${drifts} Anomaly Detected`;
+          delta.style.color = drifts === 0 ? '#10b981' : '#f59e0b';
+        }
+        if (feedback) {
+          feedback.textContent = drifts === 0 ? '● Desired State Enforced (12/12 Clean)' : `● ${drifts} Drift Reconciled Auto-Restarted`;
+          feedback.style.color = drifts === 0 ? '#10b981' : '#f59e0b';
+        }
+        showLiveTrackingToast(drifts === 0 ? 'Crossplane: All 12 containers synchronized with zero drift!' : `Crossplane: Reconciled ${drifts} container drift events!`, '🌐');
+      } catch (err) {
+        if (feedback) feedback.textContent = 'Probe Failed: ' + err.message;
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🔄 Run Crossplane Drift Audit';
         }
       }
     }

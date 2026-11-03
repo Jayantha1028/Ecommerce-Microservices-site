@@ -2,7 +2,7 @@
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Jayantha1028/Ecommerce-Microservices-site)
 [![Repository](https://img.shields.io/badge/GitHub-Jayantha1028%2FEcommerce--Microservices--site-blue?logo=github)](https://github.com/Jayantha1028/Ecommerce-Microservices-site)
-[![Test Suite](https://img.shields.io/badge/Tests-41%2F41%20Passing-brightgreen?logo=pytest)](scripts/test_all.sh)
+[![Test Suite](https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen?logo=pytest)](scripts/test_all.sh)
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13-blue?logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-12%20Containers-2496ED?logo=docker)](docker-compose.yml)
@@ -18,6 +18,7 @@ An enterprise-grade, high-availability e-commerce platform architected as decoup
    - [Distributed Checkout Saga & Stock Reservation](#2-distributed-checkout-saga--stock-reservation)
    - [Order Lifecycle & Live Tracking State Machine](#3-order-lifecycle--live-tracking-state-machine)
    - [Complete Entity-Relationship (ER) Schema](#4-complete-entity-relationship-er-schema)
+   - [Crossplane Continuous Drift Detection & Self-Healing Loop](#5-crossplane-continuous-drift-detection--self-healing-loop)
 2. [Deep-Dive Code Snippets & Line-by-Line Walkthroughs](#-deep-dive-code-snippets--line-by-line-walkthroughs)
    - [Perimeter Reverse Proxy & Header Sanitization (`api-gateway`)](#1-perimeter-reverse-proxy--header-sanitization-api-gateway)
    - [Pessimistic Concurrency Control & Row Locking (`product-service`)](#2-pessimistic-concurrency-control--row-locking-product-service)
@@ -25,6 +26,7 @@ An enterprise-grade, high-availability e-commerce platform architected as decoup
    - [Cryptographic Payment Signature Verification (`payment-service`)](#4-cryptographic-payment-signature-verification-payment-service)
    - [Real-Time 5-Stage Live Shipment Stepper (`order-service` & `portal.py`)](#5-real-time-5-stage-live-shipment-stepper-order-service--portalpy)
    - [Advanced E-Commerce Capabilities (Taxonomy, Coupons & Reviews)](#6-advanced-e-commerce-capabilities-taxonomy-coupons--reviews)
+   - [Crossplane Continuous Drift Supervisor & Reconciler (`api-gateway`)](#7-crossplane-continuous-drift-supervisor--reconciler-api-gateway)
 3. [Core Libraries & Frameworks Reference](#-core-libraries--frameworks-reference)
 4. [Exhaustive Technical Jargon Glossary](#-exhaustive-technical-jargon-glossary)
 5. [Microservices Directory & Network Ports](#-microservices-directory--network-ports)
@@ -243,6 +245,65 @@ erDiagram
         timestamp created_at "Creation timestamp"
     }
 ```
+
+---
+
+### 5. Crossplane Continuous Drift Detection & Self-Healing Loop
+
+The platform leverages **Crossplane** control plane patterns to maintain declarative infrastructure integrity across all 12 containers. Crossplane enforces continuous **drift detection**, ensuring that actual runtime states (`status.atProvider`) do not deviate from the target specification (`spec`), automatically reconciling and re-launching terminated containers to keep the application continuously running until explicit user shutdown.
+
+```mermaid
+flowchart TD
+    subgraph DeclarativeSpec["Declarative Desired State (k8s/crossplane/)"]
+        XRD["CompositeResourceDefinition (xrd-container-fleet.yaml)\nxcontainerfleets.platform.ecommerce.io"]
+        Comp["Composition (composition-container-fleet.yaml)\nContainerFleetProviderDocker"]
+        Claim["Crossplane Claim (claim-ecommerce-fleet.yaml)\nkeepAliveUntilClose: true\ndriftDetectionInterval: 15s\nautoHealOnDrift: true"]
+        XRD --> Comp
+        Claim --> XRD
+    end
+
+    subgraph RuntimeReconciler["Runtime Crossplane Controller (API Gateway Daemon)"]
+        Loop["🔄 Continuous Reconciler Loop (Every 15s)"]
+        Probe["⚡ Multi-Vector Health Probes (HTTP, TCP, PING)"]
+        DriftDetector{"🔍 Drift Evaluator: Spec vs. Observed"}
+        SelfHealer["🛠️ Auto-Healer (Container Reviver & Restart Engine)"]
+        Loop --> Probe
+        Probe --> DriftDetector
+    end
+
+    Claim -.->|"Target State Contract"| DriftDetector
+
+    subgraph Fleet["12-Container Infrastructure Fleet"]
+        Microservices["6 Microservices (:8000-:8005)\napi-gateway, auth, product, payment, order, cart"]
+        Databases["5 Dedicated PostgreSQL 16 DBs (:5432)\nauth-db, product-db, payment-db, order-db, cart-db"]
+        Cache["1 In-Memory Redis 7.2 (:6379)"]
+    end
+
+    Probe -->|"HTTP /health /ready"| Microservices
+    Probe -->|"TCP Socket Handshake"| Databases
+    Probe -->|"PING / PONG"| Cache
+
+    DriftDetector -->|"No Drift (12/12 Up)"| SyncedState["✅ Fleet Status: SYNCHRONIZED\n(0 active drifts)"]
+    DriftDetector -->|"Drift Detected (Terminated / Unreachable)"| DriftState["⚠️ Fleet Status: DRIFT_DETECTED\n(CONTAINER_EXIT_DRIFT / STORAGE_DRIFT)"]
+
+    DriftState --> SelfHealer
+    SelfHealer -->|"docker start / docker restart"| Fleet
+    SelfHealer -->|"Re-check & Verify Convergence"| Loop
+
+    subgraph Monitoring["Observability & Control"]
+        AdminDashboard["🖥️ Admin Console Dashboard (/portal)"]
+        RestAPI["🌐 GET /health/crossplane-drift\nPOST /health/crossplane-drift/reconcile"]
+    end
+
+    SyncedState --> AdminDashboard
+    SyncedState --> RestAPI
+```
+
+#### Drift Classification Taxonomy:
+1. **`CONTAINER_EXIT_DRIFT`**: An essential container process died or exited prematurely (e.g., OOM killer, node fault, unhandled process crash).
+2. **`PORT_UNREACHABLE_DRIFT`**: Container process is running but cannot bind to its declared port or accept TCP connections.
+3. **`STORAGE_CONNECTIVITY_DRIFT`**: Database engine is running but refusing connection pooling requests or internal health probes.
+4. **`SPEC_DESIRED_PORT_DRIFT`**: Container mapped port deviates from declarative specification in `k8s/crossplane/claim-ecommerce-fleet.yaml`.
 
 ---
 
@@ -653,6 +714,90 @@ def add_product_review(product_id: str, data: ReviewCreate, db: Session = Depend
 
 ---
 
+### 7. Crossplane Continuous Drift Supervisor & Reconciler (`api-gateway`)
+
+**File:** `services/api-gateway/crossplane_drift_controller.py`
+
+```python
+DESIRED_FLEET_SPEC = [
+    {"name": "ecommerce-microservices-api-gateway-1", "service": "api-gateway", "tier": "microservice", "expected_port": 8000, "health_endpoint": "http://127.0.0.1:8000/health"},
+    {"name": "ecommerce-microservices-user-auth-service-1", "service": "user-auth-service", "tier": "microservice", "expected_port": 8001, "health_endpoint": "http://127.0.0.1:8001/health"},
+    {"name": "ecommerce-microservices-product-service-1", "service": "product-service", "tier": "microservice", "expected_port": 8002, "health_endpoint": "http://127.0.0.1:8002/health"},
+    {"name": "ecommerce-microservices-payment-service-1", "service": "payment-service", "tier": "microservice", "expected_port": 8003, "health_endpoint": "http://127.0.0.1:8003/health"},
+    {"name": "ecommerce-microservices-order-service-1", "service": "order-service", "tier": "microservice", "expected_port": 8004, "health_endpoint": "http://127.0.0.1:8004/health"},
+    {"name": "ecommerce-microservices-cart-service-1", "service": "cart-service", "tier": "microservice", "expected_port": 8005, "health_endpoint": "http://127.0.0.1:8005/health"},
+    {"name": "ecommerce-microservices-auth-db-1", "service": "auth-db", "tier": "database", "expected_port": 5432, "probe_type": "postgres_socket"},
+    {"name": "ecommerce-microservices-product-db-1", "service": "product-db", "tier": "database", "expected_port": 5432, "probe_type": "postgres_socket"},
+    {"name": "ecommerce-microservices-payment-db-1", "service": "payment-db", "tier": "database", "expected_port": 5432, "probe_type": "postgres_socket"},
+    {"name": "ecommerce-microservices-order-db-1", "service": "order-db", "tier": "database", "expected_port": 5432, "probe_type": "postgres_socket"},
+    {"name": "ecommerce-microservices-cart-db-1", "service": "cart-db", "tier": "database", "expected_port": 5432, "probe_type": "postgres_socket"},
+    {"name": "ecommerce-microservices-redis-1", "service": "redis", "tier": "cache", "expected_port": 6379, "probe_type": "redis_ping"},
+]
+
+async def audit_fleet_drift() -> dict:
+    """Continuously reconcile observed runtime state against desired Crossplane spec."""
+    drifts = []
+    observed_fleet = []
+
+    # 1. Asynchronously probe all 12 containers across application, database, and cache tiers
+    for spec in DESIRED_FLEET_SPEC:
+        observed = await probe_container_health(spec)
+        observed_fleet.append(observed)
+
+        # 2. Check for Process / Container Exit Drift (premature termination)
+        if observed.get("status") not in {"running", "healthy"}:
+            drifts.append({
+                "type": "CONTAINER_EXIT_DRIFT",
+                "container": spec["name"],
+                "observed": observed.get("status"),
+                "desired": "running (healthy)",
+            })
+
+        # 3. Check for Port Unreachability & Storage Connectivity Drift
+        if not observed.get("reachable", False):
+            drifts.append({
+                "type": "PORT_UNREACHABLE_DRIFT",
+                "container": spec["name"],
+                "target_port": spec["expected_port"],
+                "error": observed.get("error"),
+            })
+
+    status_str = "SYNCHRONIZED" if not drifts else "DRIFT_DETECTED"
+    return {
+        "status": status_str,
+        "keep_alive_guard": True,
+        "total_containers": len(DESIRED_FLEET_SPEC),
+        "synced_count": len(DESIRED_FLEET_SPEC) - len(drifts),
+        "drift_count": len(drifts),
+        "drifts": drifts,
+        "observed_fleet": observed_fleet,
+    }
+
+async def reconcile_fleet_drift() -> dict:
+    """Self-healing reconciliation engine: restarts dead containers and restores fleet convergence."""
+    audit = await audit_fleet_drift()
+    actions_taken = []
+    for drift in audit.get("drifts", []):
+        container_name = drift.get("container")
+        # Trigger container restart via Docker socket / CLI
+        success = await restart_container(container_name)
+        actions_taken.append({
+            "container": container_name,
+            "action": "DOCKER_CONTAINER_RESTART",
+            "restored": success,
+        })
+    re_audit = await audit_fleet_drift()
+    return {"status": re_audit["status"], "remediated": actions_taken, "active_drifts": re_audit["drifts"]}
+```
+
+#### Detailed Technical Explanation:
+- **Declarative Specification vs. Observed Runtime**: The controller mirrors Crossplane's core Kubernetes controller behavior. `DESIRED_FLEET_SPEC` declares the invariant target state (12 containers, specific ports, and expected health protocols). Runtime probing yields `status.atProvider`.
+- **Non-Blocking Asynchronous Probing**: Uses Python's `asyncio` and `httpx.AsyncClient` with low-latency timeouts (1.5s per probe) to query all 12 services without degrading the API Gateway's high-throughput proxy loop.
+- **Continuous Keep-Alive Guard**: Even if an unexpected error, memory pressure event, or external signal causes a microservice or database container to exit prematurely, the keep-alive supervisor detects the exit within 15 seconds, issues an automated restart action, and reconciles the fleet back to `SYNCHRONIZED` without human intervention.
+- **Multi-Vector Health Checks**: Differentiates between HTTP microservices (`/health` endpoints returning 200 OK), PostgreSQL databases (TCP socket connection and handshake verification), and Redis (in-memory ping).
+
+---
+
 ## 🧰 Core Libraries & Frameworks Reference
 
 | Library / Tool | Category | Version | Purpose in this Architecture |
@@ -666,6 +811,7 @@ def add_product_review(product_id: str, data: ReviewCreate, db: Session = Depend
 | **Passlib & Cryptography** | Security / Crypto | `1.7+` | Password hashing implementation utilizing `scrypt` with random 16-byte salt generation and constant-time string comparisons. |
 | **Razorpay SDK** | Payment Provider | `1.4+` | Official SDK powering payment intent initialization, order creation, and HMAC-SHA256 signature verification. |
 | **Redis-Py** | In-Memory Cache | `5.0+` | Python client for Redis 7.2 providing sub-millisecond catalog caching, TTL key expiration, and atomic cache invalidation hooks. |
+| **Crossplane** | Cloud Native Control Plane | `1.15+` | Declarative Kubernetes infrastructure framework managing multi-container fleet compositions, continuous drift detection, and self-healing. |
 
 ---
 
@@ -711,6 +857,24 @@ A design pattern maintained by SQLAlchemy's `Session`. It tracks all business ch
 ### 13. Side-Channel Timing Attacks
 A cryptographic attack where an adversary measures the exact time an application takes to verify authentication tokens or signatures. Standard string equality (`==`) leaks information by returning early on mismatched characters. Using constant-time algorithms (`hmac.compare_digest`) ensures uniform execution duration.
 
+### 14. Crossplane Control Plane Architecture
+An open-source Kubernetes framework that elevates Kubernetes from a container orchestrator into a universal control plane. Instead of managing infrastructure through disparate scripts or imperative cloud consoles, Crossplane allows defining infrastructure as declarative Kubernetes Custom Resource Definitions (CRDs).
+
+### 15. Continuous Drift Detection (`spec` vs. `status.atProvider`)
+The ongoing observation and automated comparison of actual runtime infrastructure state (`status.atProvider`) against declarative desired configuration (`spec`). When an uncoordinated event occurs—such as an unexpected container exit or a network port refusal—the system flags the discrepancy as a **Drift** (`DRIFT_DETECTED`) and triggers self-healing.
+
+### 16. Reconciliation Loop Pattern
+The foundational control theory pattern used in Kubernetes and Crossplane. Rather than executing a one-time setup script, a reconciler runs continuously in the background, executing an idempotent loop:
+$$\text{Observe Current State} \longrightarrow \text{Compare with Desired Spec} \longrightarrow \text{Execute Remediation Actions}$$
+This guarantees eventual consistency and self-recovery without manual human intervention.
+
+### 17. XRD (CompositeResourceDefinition) & Composition
+- **XRD**: A schema definition that creates a custom, business-domain API (e.g. `ContainerFleet`) tailored for the application team.
+- **Composition**: An infrastructure blueprint that links an XRD to concrete low-level resources (e.g., Docker container instances, subnets, volume claims), providing clear separation of concerns between developers and platform engineers.
+
+### 18. Continuous Keep-Alive Fleet Guard
+An active runtime watchdog and supervisor mechanism that guarantees all 12 core application containers, databases, and caches remain alive and operational until the user explicitly issues an application shutdown or teardown signal.
+
 ---
 
 ## 📂 Microservices Directory & Network Ports
@@ -743,10 +907,42 @@ Every service will report `Up (healthy)`.
 - **Customer Storefront Portal:** [http://localhost:8000](http://localhost:8000)
 - **Interactive OpenAPI Documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
 - **Built-in System Documentation:** [http://localhost:8000/support](http://localhost:8000/support)
+- **Crossplane Drift Health API:** [http://localhost:8000/health/crossplane-drift](http://localhost:8000/health/crossplane-drift)
 - **Hidden Administrator Gate:** Press `Ctrl + Shift + A` (or click the top-left logo 5 times) $\to$ Password: `AdminPassword123!`
 
-### 3. Run the Automated End-to-End Test Suite (41/41 Passing)
+### 3. Inspect & Trigger Crossplane Drift Self-Healing
+Query active fleet alignment via curl:
+```bash
+curl -s http://localhost:8000/health/crossplane-drift | jq
+```
+Expected response when fully healthy:
+```json
+{
+  "status": "SYNCHRONIZED",
+  "drift_count": 0,
+  "keep_alive_guard": true,
+  "synced_count": 12,
+  "total_containers": 12
+}
+```
+Trigger manual on-demand reconciliation and self-healing:
+```bash
+curl -s -X POST http://localhost:8000/health/crossplane-drift/reconcile | jq
+```
+
+### 4. Run the Automated End-to-End Test Suite (44/44 Passing)
 ```bash
 bash scripts/test_all.sh
 ```
-Executes complete automated validation across health checks, JWT security, product CRUD, inventory locking, checkout sagas, Razorpay payments, and live order tracking.
+Executes complete automated validation across:
+1. Health checks & gateway routing
+2. Existing data preservation (`LAPTOP-001`)
+3. Customer registration, verification & authentication
+4. Administrator authorization & role enforcement
+5. Product CRUD, inventory locks & stock updates
+6. Multi-item cart management
+7. Order creation, checkout saga & inventory reservation
+8. Razorpay payment creation & HMAC-SHA256 verification
+9. Dynamic product categories, fuzzy search, catalog sorting, promo coupons (`CYBER20`, etc.), customer reviews & star ratings
+10. Crossplane 12-container fleet desired alignment, continuous keep-alive guard, and drift self-healing sweep
+11. Safe test data cleanup

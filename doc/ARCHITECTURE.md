@@ -12,6 +12,7 @@ Comprehensive architectural documentation for the E-Commerce Platform, capturing
 5. [Order Lifecycle & 6-Hour Cancellation Lock State Machine](#5-order-lifecycle--6-hour-cancellation-lock-state-machine)
 6. [Security & Authentication Architecture](#6-security--authentication-architecture)
 7. [Kubernetes Cluster Deployment Architecture](#7-kubernetes-cluster-deployment-architecture)
+8. [Crossplane Continuous Drift Detection & Keep-Alive Architecture](#8-crossplane-continuous-drift-detection--keep-alive-architecture)
 
 ---
 
@@ -413,3 +414,59 @@ flowchart TD
         end
     end
 ```
+
+---
+
+## 8. Crossplane Continuous Drift Detection & Keep-Alive Architecture
+
+The infrastructure uses **Crossplane** Custom Resources (`XRD`, `Composition`, `Claim`) to define and enforce continuous drift detection and container self-healing across the 12-container fleet.
+
+```mermaid
+flowchart TD
+    subgraph ControlPlane["Crossplane Control Plane Layer (k8s/crossplane/)"]
+        Provider["Provider: provider-docker (v0.44+) / provider-kubernetes"]
+        XRD["CompositeResourceDefinition: ContainerFleet\nxcontainerfleets.platform.ecommerce.io"]
+        Comp["Composition: container-fleet-docker.platform.ecommerce.io"]
+        Claim["Claim: ecommerce-fleet (claim-ecommerce-fleet.yaml)"]
+        
+        Provider --> Comp
+        XRD --> Comp
+        Claim --> XRD
+    end
+
+    subgraph RuntimeSupervisor["Runtime Drift & Keep-Alive Supervisor (API Gateway)"]
+        AuditLoop["Continuous Drift Audit Loop (Interval: 15s)"]
+        ActiveProbes["Active Multi-Vector Health Probes"]
+        DriftComparator{"Observed vs Desired Spec"}
+        Healer["Automated Self-Healing Engine"]
+
+        AuditLoop --> ActiveProbes
+        ActiveProbes --> DriftComparator
+    end
+
+    Claim -.->|"Desired State Contract"| DriftComparator
+
+    subgraph ContainerFleet["12-Container Application Fleet"]
+        AppTier["App Microservices (:8000-:8005)"]
+        DBTier["PostgreSQL Databases (:5432)"]
+        CacheTier["Redis Cache (:6379)"]
+    end
+
+    ActiveProbes --> AppTier
+    ActiveProbes --> DBTier
+    ActiveProbes --> CacheTier
+
+    DriftComparator -->|"Matched (0 Drifts)"| Synced["Status: SYNCHRONIZED\nKeep-Alive Guard Active"]
+    DriftComparator -->|"Mismatch (Process exit, unreachability)"| Drifted["Status: DRIFT_DETECTED"]
+
+    Drifted --> Healer
+    Healer -->|"docker start / docker restart"| ContainerFleet
+    Healer -->|"Re-probe Fleet"| AuditLoop
+```
+
+### Declarative Crossplane Resources
+1. **`k8s/crossplane/providers.yaml`**: Installs Crossplane providers for Docker and Kubernetes to manage container instances directly via Kubernetes declarative semantics.
+2. **`k8s/crossplane/xrd-container-fleet.yaml`**: Defines the `CompositeResourceDefinition` `ContainerFleet` with schema validation for desired containers, keep-alive guard policy, probe intervals, and drift status reports.
+3. **`k8s/crossplane/composition-container-fleet.yaml`**: Composes the 12 containers into a unified composite resource with declarative environment variables, port mappings, volume mounts, and network links.
+4. **`k8s/crossplane/claim-ecommerce-fleet.yaml`**: The operational claim requesting continuous monitoring (`driftDetectionInterval: 15s`, `keepAliveUntilClose: true`, `autoHealOnDrift: true`).
+5. **Runtime Drift Supervisor**: Implemented in [`services/api-gateway/crossplane_drift_controller.py`](file:///Users/jayanthanayak/Ecommerce_Microservices_Kubernetes/services/api-gateway/crossplane_drift_controller.py) to actively evaluate the desired Crossplane fleet specification, expose live endpoints (`/health/crossplane-drift`, `/health/crossplane-drift/reconcile`), and power the Admin Console's Crossplane drift audit card.

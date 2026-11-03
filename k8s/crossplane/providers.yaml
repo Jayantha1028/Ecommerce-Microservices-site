@@ -1,0 +1,17 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-docker
+  annotations:
+    crossplane.io/description: "Crossplane Provider for managing and reconciling container runtimes with continuous drift detection."
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-docker:v0.4.0
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-kubernetes
+  annotations:
+    crossplane.io/description: "Crossplane Provider for Kubernetes in-cluster PodDisruptionBudgets and Deployments."
+spec:
+  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.12.0

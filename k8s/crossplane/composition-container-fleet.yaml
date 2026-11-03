@@ -1,0 +1,226 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: container-fleet-reconciler
+  labels:
+    crossplane.io/xrd: containerfleets.ecommerce.platform.io
+    environment: production
+spec:
+  compositeTypeRef:
+    apiVersion: ecommerce.platform.io/v1alpha1
+    kind: ContainerFleet
+  mode: Pipeline
+  pipeline:
+  - step: reconcile-container-fleet
+    functionRef:
+      name: function-patch-and-transform
+    input:
+      apiVersion: pt.fn.crossplane.io/v1beta1
+      kind: Resources
+      resources:
+      # Microservice Container 1: API Gateway
+      - name: container-api-gateway
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: api-gateway
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: ecommerce-microservices-api-gateway:latest
+              restart: unless-stopped
+              ports:
+              - internal: 8000
+                external: 8000
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      # Microservice Container 2: Auth Service
+      - name: container-user-auth-service
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: user-auth-service
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: ecommerce-microservices-auth-service:latest
+              restart: unless-stopped
+              ports:
+              - internal: 8001
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      # Microservice Container 3: Product Service
+      - name: container-product-service
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: product-service
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: ecommerce-microservices-product-service:latest
+              restart: unless-stopped
+              ports:
+              - internal: 8002
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      # Microservice Container 4: Payment Service
+      - name: container-payment-service
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: payment-service
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: ecommerce-microservices-payment-service:latest
+              restart: unless-stopped
+              ports:
+              - internal: 8003
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      # Microservice Container 5: Order Service
+      - name: container-order-service
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: order-service
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: ecommerce-microservices-order-service:latest
+              restart: unless-stopped
+              ports:
+              - internal: 8004
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      # Microservice Container 6: Cart Service
+      - name: container-cart-service
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: cart-service
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: ecommerce-microservices-cart-service:latest
+              restart: unless-stopped
+              ports:
+              - internal: 8005
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      # Database Containers 7-11: PostgreSQL Tiers
+      - name: container-auth-db
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: auth-db
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: postgres:16-alpine
+              restart: unless-stopped
+              volumes:
+              - hostPath: auth-data
+                containerPath: /var/lib/postgresql/data
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      - name: container-product-db
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: product-db
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: postgres:16-alpine
+              restart: unless-stopped
+              volumes:
+              - hostPath: product-data
+                containerPath: /var/lib/postgresql/data
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      - name: container-order-db
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: order-db
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: postgres:16-alpine
+              restart: unless-stopped
+              volumes:
+              - hostPath: order-data
+                containerPath: /var/lib/postgresql/data
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      - name: container-payment-db
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: payment-db
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: postgres:16-alpine
+              restart: unless-stopped
+              volumes:
+              - hostPath: payment-data
+                containerPath: /var/lib/postgresql/data
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      - name: container-cart-db
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: cart-db
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: postgres:16-alpine
+              restart: unless-stopped
+              volumes:
+              - hostPath: cart-data
+                containerPath: /var/lib/postgresql/data
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]
+      # In-Memory Cache Container 12: Redis
+      - name: container-redis
+        base:
+          apiVersion: docker.crossplane.io/v1alpha1
+          kind: Container
+          metadata:
+            labels:
+              app.kubernetes.io/name: redis
+              crossplane.io/drift-managed: "true"
+          spec:
+            forProvider:
+              image: redis:7-alpine
+              restart: unless-stopped
+              ports:
+              - internal: 6379
+              stopTimeout: 30
+            managementPolicies: ["Observe", "Create", "Update"]

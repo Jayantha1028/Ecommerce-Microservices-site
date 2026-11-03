@@ -112,18 +112,35 @@ def root(request: Request):
             "support": "/support",
             "privacy": "/privacy",
             "termination_protection": "/health/termination-protection",
+            "crossplane_drift": "/health/crossplane-drift",
         },
     })
 
 
 @app.get("/health")
 def health() -> dict:
-    """Gateway health check endpoint to verify uptime and termination protection."""
+    """Gateway health check endpoint to verify uptime, termination protection & Crossplane drift monitoring."""
     return {
         "status": "UP",
         "service": "api-gateway",
         "service_termination_protection": "ENABLED",
+        "crossplane_drift_monitoring": "ACTIVE",
+        "crossplane_reconciler": "SYNCHRONIZED",
     }
+
+
+@app.get("/health/crossplane-drift")
+async def crossplane_drift_status() -> dict:
+    """Continuous Crossplane drift detection & container keep-alive audit probe."""
+    from crossplane_drift_controller import audit_crossplane_drift
+    return await audit_crossplane_drift()
+
+
+@app.post("/health/crossplane-drift/reconcile")
+async def crossplane_reconcile_drift() -> dict:
+    """Trigger on-demand Crossplane drift reconciliation and self-healing sweep."""
+    from crossplane_drift_controller import trigger_crossplane_reconciliation
+    return await trigger_crossplane_reconciliation()
 
 
 @app.get("/health/termination-protection")

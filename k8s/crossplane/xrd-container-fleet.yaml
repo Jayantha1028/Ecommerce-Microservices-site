@@ -1,0 +1,80 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: containerfleets.ecommerce.platform.io
+spec:
+  group: ecommerce.platform.io
+  names:
+    kind: ContainerFleet
+    plural: containerfleets
+  claimNames:
+    kind: ContainerFleetClaim
+    plural: containerfleetclaims
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required:
+            - desiredState
+            - driftDetectionIntervalSeconds
+            - keepAliveUntilClosed
+            properties:
+              desiredState:
+                type: string
+                enum: ["RUNNING", "STOPPED", "DRAINING"]
+                description: "Desired runtime status of the microservice container fleet."
+              driftDetectionIntervalSeconds:
+                type: integer
+                default: 15
+                minimum: 5
+                maximum: 300
+                description: "Frequency at which Crossplane scans observed container state against declared spec."
+              keepAliveUntilClosed:
+                type: boolean
+                default: true
+                description: "If true, any container stoppage before authorized application close is treated as drift and automatically self-healed."
+              reconciliationPolicy:
+                type: string
+                enum: ["ContinuousSelfHealing", "ObserveOnly"]
+                default: "ContinuousSelfHealing"
+                description: "Reconciliation behavior upon detecting drift."
+              gracefulDrainSeconds:
+                type: integer
+                default: 30
+                description: "Allowed drain window for in-flight transactions before SIGKILL."
+          status:
+            type: object
+            properties:
+              driftStatus:
+                type: string
+                description: "Current synchronization status: SYNCHRONIZED, DRIFT_DETECTED, or RECONCILING."
+              lastReconciliationTime:
+                type: string
+                format: date-time
+              observedContainersCount:
+                type: integer
+              desiredContainersCount:
+                type: integer
+              activeDriftsCount:
+                type: integer
+              driftDetails:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    containerName:
+                      type: string
+                    driftType:
+                      type: string
+                    observedState:
+                      type: string
+                    desiredState:
+                      type: string
+                    reconciliationAction:
+                      type: string
