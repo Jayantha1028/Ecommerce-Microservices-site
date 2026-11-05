@@ -164,6 +164,46 @@ def run_suite() -> int:
         status == 200 and cp_rec.get("status") in {"SYNCHRONIZED", "RECONCILING"},
     )
 
+    # Observability, Structured Logs & Anomaly Detection Alarms
+    status, obs_overview = request_json("GET", "/observability/overview", expected_status=200)
+    log_test(
+        "Observability Telemetry & Metrics Window",
+        status == 200 and "telemetry" in obs_overview and "alarms" in obs_overview,
+        f"RPM: {obs_overview.get('telemetry', {}).get('rpm')} | Alarms: {obs_overview.get('alarms', {}).get('overall_status')}",
+    )
+    status, obs_logs = request_json("GET", "/observability/logs?limit=10", expected_status=200)
+    log_test(
+        "Centralized Structured Logs Stream",
+        status == 200 and isinstance(obs_logs.get("logs"), list) and obs_logs.get("count", 0) > 0,
+        f"Buffered Records: {obs_logs.get('count')}",
+    )
+    status, obs_alarms = request_json("GET", "/observability/alarms", expected_status=200)
+    log_test(
+        "Anomaly Detection Alarm Rules Evaluated",
+        status == 200 and len(obs_alarms.get("configured_rules", [])) >= 5,
+        f"Rules: {len(obs_alarms.get('configured_rules', []))} | Active: {obs_alarms.get('active_count')}",
+    )
+    # Simulate an alarm and reset it to verify dynamic alerting pipeline
+    status, sim_trigger = request_json(
+        "POST",
+        "/observability/alarms/simulate",
+        payload={"alarm_type": "FAILURE_RATE_SPIKE", "action": "trigger"},
+        expected_status=200,
+    )
+    status_sim, firing_alarms = request_json("GET", "/observability/alarms", expected_status=200)
+    status_reset, _ = request_json(
+        "POST",
+        "/observability/alarms/simulate",
+        payload={"alarm_type": "ALL", "action": "reset"},
+        expected_status=200,
+    )
+    status_post_reset, clean_alarms = request_json("GET", "/observability/alarms", expected_status=200)
+    log_test(
+        "Anomaly Alarm Simulation & Auto-Recovery",
+        firing_alarms.get("active_count", 0) >= 1 and clean_alarms.get("active_count") == 0,
+        "Simulated 5XX Spike -> Fired Alarm -> Reset to Healthy",
+    )
+
     # -----------------------------------------------------------------
     # TEST GROUP 2: Existing Data Preservation (LAPTOP-001)
     # -----------------------------------------------------------------

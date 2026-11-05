@@ -1308,6 +1308,107 @@ PORTAL_HTML = """<!DOCTYPE html>
           </div>
         </div>
 
+        <!-- Telemetry Anomaly Alarms & Failure Measurement Card -->
+        <div class="admin-card">
+          <h3 style="display: flex; justify-content: space-between; align-items: center;">
+            <span>🚨 Anomaly Alarms & Failure Guard</span>
+            <span class="role-badge" id="adminAlarmOverallBadge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid #10b981; font-weight: 800; box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);">ALL NORMAL</span>
+          </h3>
+          <div style="font-size: 0.8rem; color: #cbd5e1; margin-bottom: 0.75rem; line-height: 1.45;">
+            Continuous anomaly detection evaluating 5XX server failure spikes, latency degradation, traffic surges, and service drop dropouts.
+          </div>
+          <div class="service-row">
+            <span><strong>5XX Failure Rate Spike</strong> (Threshold: 5.0%)</span>
+            <span id="alarmRowFailure" style="color: #10b981; font-weight: 700;">✅ 0.0% (Normal)</span>
+          </div>
+          <div class="service-row">
+            <span><strong>P95 Latency Spike</strong> (Threshold: 400ms)</span>
+            <span id="alarmRowLatency" style="color: #10b981; font-weight: 700;">✅ &lt;50ms (Normal)</span>
+          </div>
+          <div class="service-row">
+            <span><strong>Traffic Surge Spike</strong> (Threshold: 300 RPM)</span>
+            <span id="alarmRowTraffic" style="color: #10b981; font-weight: 700;">✅ Stable (Normal)</span>
+          </div>
+          <div class="service-row">
+            <span><strong>Service Drop Anomaly</strong></span>
+            <span id="alarmRowDrop" style="color: #10b981; font-weight: 700;">✅ Flow Active (0 Drops)</span>
+          </div>
+          <div style="margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px dashed var(--card-border); display: flex; flex-direction: column; gap: 0.5rem;">
+            <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">Developer Anomaly Simulation Sandbox:</div>
+            <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+              <button class="btn-sm" onclick="triggerSimulatedAlarm('FAILURE_RATE_SPIKE')" style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 0.25rem 0.6rem; font-size: 0.75rem; cursor: pointer;">
+                🚨 Sim 5XX Spike
+              </button>
+              <button class="btn-sm" onclick="triggerSimulatedAlarm('LATENCY_SPIKE')" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); padding: 0.25rem 0.6rem; font-size: 0.75rem; cursor: pointer;">
+                ⚡ Sim Latency Spike
+              </button>
+              <button class="btn-sm" onclick="triggerSimulatedAlarm('TRAFFIC_DROP_ANOMALY')" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 0.25rem 0.6rem; font-size: 0.75rem; cursor: pointer;">
+                📉 Sim Drop
+              </button>
+              <button class="btn-sm" onclick="triggerSimulatedAlarm('ALL', 'reset')" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); padding: 0.25rem 0.6rem; font-size: 0.75rem; cursor: pointer;">
+                🔄 Reset Alarms
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Centralized Live Observability & Structured Logs Terminal -->
+        <div class="admin-card" style="grid-column: 1 / -1;">
+          <h3 style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+            <span>📡 Microservices Observability & Live Logs Terminal</span>
+            <div style="display: flex; gap: 0.75rem; align-items: center; font-size: 0.8rem; flex-wrap: wrap;">
+              <span style="color: #94a3b8;">Throughput: <strong id="obsThroughputLabel" style="color: #00f0ff;">0 req/min</strong></span>
+              <span style="color: #94a3b8;">Failure Rate: <strong id="obsFailureRateLabel" style="color: #10b981;">0.0%</strong></span>
+              <span style="color: #94a3b8;">P95 Latency: <strong id="obsP95Label" style="color: #fbbf24;">0ms</strong></span>
+              <span style="color: #94a3b8;">Alarms: <strong id="obsActiveAlarmsCount" style="color: #10b981;">0 Active</strong></span>
+            </div>
+          </h3>
+
+          <!-- Toolbar: Filters, Search & Auto-Refresh -->
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; background: rgba(0,0,0,0.3); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--card-border);">
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <label style="font-size: 0.78rem; color: #94a3b8; font-weight: 600;">Service:</label>
+              <select id="logFilterService" onchange="fetchObservabilityLogs()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.78rem; font-family: var(--font-mono);">
+                <option value="all">All Services (6 Tiers)</option>
+                <option value="api-gateway">api-gateway</option>
+                <option value="user-auth-service">user-auth-service</option>
+                <option value="product-service">product-service</option>
+                <option value="cart-service">cart-service</option>
+                <option value="order-service">order-service</option>
+                <option value="payment-service">payment-service</option>
+              </select>
+
+              <label style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; margin-left: 0.3rem;">Level:</label>
+              <select id="logFilterLevel" onchange="fetchObservabilityLogs()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.78rem; font-family: var(--font-mono);">
+                <option value="">All Levels</option>
+                <option value="INFO">INFO & Above</option>
+                <option value="WARN">WARN & ERROR</option>
+                <option value="ERROR">ERROR Only</option>
+                <option value="CRITICAL">CRITICAL Only</option>
+              </select>
+
+              <input type="text" id="logSearchInput" placeholder="Filter logs (e.g. /products, 500, JWT)..." oninput="debounceLogSearch()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.78rem; width: 220px; font-family: var(--font-mono);">
+            </div>
+
+            <div style="display: flex; gap: 0.4rem; align-items: center;">
+              <button class="btn-sm" id="btnToggleLogAuto" onclick="toggleLogAutoRefresh()" style="background: rgba(0, 240, 255, 0.12); color: #00f0ff; border: 1px solid rgba(0, 240, 255, 0.35); padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
+                ⏸️ Auto-Refresh (3s)
+              </button>
+              <button class="btn-sm" onclick="fetchObservabilityLogs()" style="background: var(--primary); color: #000; font-weight: 700; padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
+                🔄 Refresh Now
+              </button>
+              <button class="btn-sm" onclick="clearLogTerminalView()" style="background: rgba(255, 255, 255, 0.08); color: #cbd5e1; border: 1px solid var(--card-border); padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
+                🗑️ Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Live Log Terminal Output -->
+          <div id="liveLogTerminal" style="height: 320px; overflow-y: auto; background: #020713; border: 1px solid rgba(0, 212, 255, 0.22); border-radius: 8px; padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.65; color: #e2e8f0; box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);">
+            <!-- Logs rendered dynamically via JS -->
+          </div>
+        </div>
+
 
         <!-- Inventory Stock Control Table -->
         <div class="admin-card" style="grid-column: 1 / -1;">
@@ -2216,6 +2317,258 @@ PORTAL_HTML = """<!DOCTYPE html>
       }
     }
 
+    // ==============================================================================
+    // Central Observability, Live Logs & Anomaly Alarms Engine
+    // ==============================================================================
+    let logAutoRefreshInterval = null;
+    let logSearchDebounceTimer = null;
+    let isLogAutoRefreshEnabled = true;
+
+    function startObservabilityPolling() {
+      fetchObservabilityOverview();
+      fetchObservabilityLogs();
+      if (!logAutoRefreshInterval && isLogAutoRefreshEnabled) {
+        logAutoRefreshInterval = setInterval(() => {
+          fetchObservabilityOverview();
+          fetchObservabilityLogs();
+        }, 3000);
+      }
+    }
+
+    function stopObservabilityPolling() {
+      if (logAutoRefreshInterval) {
+        clearInterval(logAutoRefreshInterval);
+        logAutoRefreshInterval = null;
+      }
+    }
+
+    function toggleLogAutoRefresh() {
+      const btn = document.getElementById('btnToggleLogAuto');
+      if (isLogAutoRefreshEnabled) {
+        isLogAutoRefreshEnabled = false;
+        stopObservabilityPolling();
+        if (btn) {
+          btn.textContent = '▶️ Resume Auto-Refresh';
+          btn.style.color = '#94a3b8';
+          btn.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+        }
+      } else {
+        isLogAutoRefreshEnabled = true;
+        startObservabilityPolling();
+        if (btn) {
+          btn.textContent = '⏸️ Auto-Refresh (3s)';
+          btn.style.color = '#00f0ff';
+          btn.style.borderColor = 'rgba(0, 240, 255, 0.35)';
+        }
+      }
+    }
+
+    function debounceLogSearch() {
+      clearTimeout(logSearchDebounceTimer);
+      logSearchDebounceTimer = setTimeout(() => {
+        fetchObservabilityLogs();
+      }, 250);
+    }
+
+    function clearLogTerminalView() {
+      const term = document.getElementById('liveLogTerminal');
+      if (term) term.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 0.5rem 0;">Terminal buffer cleared. New live telemetry events will stream in...</div>';
+    }
+
+    async function fetchObservabilityOverview() {
+      try {
+        const res = await fetch('/observability/overview');
+        if (!res.ok) return;
+        const data = await res.json();
+        const telemetry = data.telemetry || {};
+        const alarms = data.alarms || {};
+
+        // Update telemetry metric labels
+        const throughputLabel = document.getElementById('obsThroughputLabel');
+        if (throughputLabel) throughputLabel.textContent = `${telemetry.rpm || 0} req/min`;
+
+        const failureLabel = document.getElementById('obsFailureRateLabel');
+        if (failureLabel) {
+          const failPct = telemetry.failure_rate_percent || 0.0;
+          failureLabel.textContent = `${failPct}%`;
+          failureLabel.style.color = failPct >= 5.0 ? '#ef4444' : (failPct > 1.0 ? '#f59e0b' : '#10b981');
+        }
+
+        const p95Label = document.getElementById('obsP95Label');
+        if (p95Label) {
+          const p95 = (telemetry.latency && telemetry.latency.p95_ms) ? telemetry.latency.p95_ms : 0;
+          p95Label.textContent = `${p95}ms`;
+          p95Label.style.color = p95 >= 400 ? '#ef4444' : (p95 > 150 ? '#f59e0b' : '#00f0ff');
+        }
+
+        const alarmsCount = document.getElementById('obsActiveAlarmsCount');
+        if (alarmsCount) {
+          const count = alarms.active_count || 0;
+          alarmsCount.textContent = `${count} Active`;
+          alarmsCount.style.color = count > 0 ? '#ef4444' : '#10b981';
+        }
+
+        // Update overall alarm badge
+        const badge = document.getElementById('adminAlarmOverallBadge');
+        if (badge) {
+          const status = alarms.overall_status || 'HEALTHY';
+          if (status === 'CRITICAL') {
+            badge.textContent = `🚨 ${alarms.active_count} CRITICAL ALARM`;
+            badge.style.background = 'rgba(239, 68, 68, 0.2)';
+            badge.style.color = '#ef4444';
+            badge.style.borderColor = '#ef4444';
+          } else if (status === 'WARNING') {
+            badge.textContent = `⚠️ ${alarms.active_count} WARNING`;
+            badge.style.background = 'rgba(245, 158, 11, 0.2)';
+            badge.style.color = '#f59e0b';
+            badge.style.borderColor = '#f59e0b';
+          } else {
+            badge.textContent = 'ALL NORMAL';
+            badge.style.background = 'rgba(16, 185, 129, 0.15)';
+            badge.style.color = '#10b981';
+            badge.style.borderColor = '#10b981';
+          }
+        }
+
+        // Update active alarm status rows
+        const activeMap = {};
+        (alarms.active_alarms || []).forEach(a => { activeMap[a.id || a.name] = a; });
+
+        const rowFail = document.getElementById('alarmRowFailure');
+        if (rowFail) {
+          if (activeMap['ALARM_FAILURE_RATE_SPIKE'] || activeMap['5XX Server Failure Rate Spike']) {
+            const a = activeMap['ALARM_FAILURE_RATE_SPIKE'] || activeMap['5XX Server Failure Rate Spike'];
+            rowFail.textContent = `🚨 FIRING: ${a.current_value}`;
+            rowFail.style.color = '#ef4444';
+          } else {
+            rowFail.textContent = `✅ ${telemetry.failure_rate_percent || 0.0}% (Normal)`;
+            rowFail.style.color = '#10b981';
+          }
+        }
+
+        const rowLat = document.getElementById('alarmRowLatency');
+        if (rowLat) {
+          if (activeMap['ALARM_LATENCY_SPIKE'] || activeMap['P95 Latency Degradation Spike']) {
+            const a = activeMap['ALARM_LATENCY_SPIKE'] || activeMap['P95 Latency Degradation Spike'];
+            rowLat.textContent = `⚠️ FIRING: ${a.current_value}`;
+            rowLat.style.color = '#f59e0b';
+          } else {
+            const p95 = (telemetry.latency && telemetry.latency.p95_ms) ? telemetry.latency.p95_ms : 0;
+            rowLat.textContent = `✅ ${p95}ms (Normal)`;
+            rowLat.style.color = '#10b981';
+          }
+        }
+
+        const rowTraffic = document.getElementById('alarmRowTraffic');
+        if (rowTraffic) {
+          if (activeMap['ALARM_TRAFFIC_SURGE_SPIKE'] || activeMap['Unusual Traffic Surge Spike']) {
+            const a = activeMap['ALARM_TRAFFIC_SURGE_SPIKE'] || activeMap['Unusual Traffic Surge Spike'];
+            rowTraffic.textContent = `⚠️ FIRING: ${a.current_value}`;
+            rowTraffic.style.color = '#f59e0b';
+          } else {
+            rowTraffic.textContent = `✅ ${telemetry.rpm || 0} RPM (Normal)`;
+            rowTraffic.style.color = '#10b981';
+          }
+        }
+
+        const rowDrop = document.getElementById('alarmRowDrop');
+        if (rowDrop) {
+          if (activeMap['ALARM_TRAFFIC_DROP_ANOMALY'] || activeMap['Service Throughput & Heartbeat Drop']) {
+            const a = activeMap['ALARM_TRAFFIC_DROP_ANOMALY'] || activeMap['Service Throughput & Heartbeat Drop'];
+            rowDrop.textContent = `🚨 FIRING: ${a.current_value}`;
+            rowDrop.style.color = '#ef4444';
+          } else {
+            rowDrop.textContent = `✅ Flow Active (0 Drops)`;
+            rowDrop.style.color = '#10b981';
+          }
+        }
+
+      } catch (err) {
+        console.error('Error fetching observability overview:', err);
+      }
+    }
+
+    async function fetchObservabilityLogs() {
+      try {
+        const svcFilter = document.getElementById('logFilterService')?.value || '';
+        const lvlFilter = document.getElementById('logFilterLevel')?.value || '';
+        const searchVal = document.getElementById('logSearchInput')?.value || '';
+
+        const params = new URLSearchParams();
+        if (svcFilter && svcFilter !== 'all') params.append('service', svcFilter);
+        if (lvlFilter) params.append('level', lvlFilter);
+        if (searchVal) params.append('search', searchVal);
+        params.append('limit', '80');
+
+        const res = await fetch(`/observability/logs?${params.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const logs = data.logs || [];
+        const term = document.getElementById('liveLogTerminal');
+        if (!term) return;
+
+        if (logs.length === 0) {
+          term.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 0.5rem 0;">No matching log events found.</div>';
+          return;
+        }
+
+        term.innerHTML = logs.map(entry => {
+          const timeStr = entry.timestamp ? entry.timestamp.split('T')[1].split('.')[0] : '--:--:--';
+          let lvlColor = '#10b981'; // INFO
+          if (entry.level === 'WARN') lvlColor = '#f59e0b';
+          else if (entry.level === 'ERROR') lvlColor = '#ef4444';
+          else if (entry.level === 'CRITICAL') lvlColor = '#ff0055';
+
+          let svcColor = '#38bdf8';
+          if (entry.service.includes('auth')) svcColor = '#c084fc';
+          else if (entry.service.includes('product')) svcColor = '#60a5fa';
+          else if (entry.service.includes('cart')) svcColor = '#f472b6';
+          else if (entry.service.includes('order')) svcColor = '#fbbf24';
+          else if (entry.service.includes('payment')) svcColor = '#34d399';
+
+          const statusBadge = entry.status_code 
+            ? `<span style="background: rgba(255,255,255,0.08); padding: 0.1rem 0.35rem; border-radius: 4px; color: ${entry.status_code >= 400 ? '#ef4444' : '#10b981'}; font-weight: 700;">${entry.status_code}</span>` 
+            : '';
+
+          const latBadge = (entry.latency_ms !== null && entry.latency_ms !== undefined)
+            ? `<span style="color: #94a3b8; font-size: 0.72rem;">${entry.latency_ms}ms</span>`
+            : '';
+
+          return `
+            <div style="display: flex; gap: 0.5rem; align-items: baseline; padding: 0.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+              <span style="color: #64748b; font-size: 0.72rem; min-width: 60px;">${timeStr}</span>
+              <span style="background: rgba(255,255,255,0.06); color: ${svcColor}; padding: 0.05rem 0.4rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600; min-width: 110px; text-align: center;">${entry.service}</span>
+              <span style="color: ${lvlColor}; font-weight: 800; min-width: 50px;">[${entry.level}]</span>
+              <span style="flex: 1; word-break: break-word; color: ${entry.level === 'CRITICAL' ? '#ff99aa' : (entry.level === 'ERROR' ? '#fca5a5' : '#cbd5e1')};">${entry.message}</span>
+              ${statusBadge}
+              ${latBadge}
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error fetching observability logs:', err);
+      }
+    }
+
+    async function triggerSimulatedAlarm(alarmType, action = 'trigger') {
+      try {
+        const res = await fetch('/observability/alarms/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alarm_type: alarmType, action: action })
+        });
+        const data = await res.json();
+        showLiveTrackingToast(
+          action === 'reset' ? 'All anomaly alarms reset to healthy normal!' : `Simulated Alarm Triggered: ${alarmType}`,
+          action === 'reset' ? '✅' : '🚨'
+        );
+        fetchObservabilityOverview();
+        fetchObservabilityLogs();
+      } catch (err) {
+        console.error('Error triggering simulated alarm:', err);
+      }
+    }
+
 
     async function unlockAdminWithPassword(e) {
       e.preventDefault();
@@ -2536,8 +2889,10 @@ PORTAL_HTML = """<!DOCTYPE html>
         if (userStoreView) userStoreView.style.display = 'none';
         if (adminControlView) adminControlView.style.display = 'block';
         renderAdminInventory();
+        startObservabilityPolling();
       } else {
         body.classList.remove('admin-theme');
+        stopObservabilityPolling();
         if (adminBtn) adminBtn.style.display = 'none';
         if (headerCart) headerCart.style.display = 'inline-flex';
         if (headerOrders) headerOrders.style.display = 'inline-flex';

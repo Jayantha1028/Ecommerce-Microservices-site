@@ -13,11 +13,13 @@ if str(SERVICE_DIR) not in sys.path:
     sys.path.insert(0, str(SERVICE_DIR))
 
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+import time
 from typing import Optional
 import uuid
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -36,6 +38,7 @@ from config import (
 from payment_page import PAYMENT_GATEWAY_HTML
 from portal import PORTAL_HTML, setup_unified_openapi
 from security import requires_auth, service_for, verify_bearer
+from observability_engine import alarm_manager, log_store, metrics_tracker
 
 # Persistent shared async HTTP client for connection pooling.
 http_client: Optional[httpx.AsyncClient] = None
@@ -87,6 +90,81 @@ setup_unified_openapi(app)
 
 
 # ==============================================================================
+# Central Observability, Metrics & Telemetry Interceptor Middleware
+# ==============================================================================
+
+@app.middleware("http")
+async def observability_middleware(request: Request, call_next):
+    """Intercept all gateway requests to collect latency telemetry, failure metrics, and structured logs."""
+    start_time = time.time()
+    correlation_id = request.headers.get("x-correlation-id") or uuid.uuid4().hex
+
+    path = request.url.path
+    service = "api-gateway"
+    if path.startswith("/auth"):
+        service = "user-auth-service"
+    elif path.startswith("/products") or path.startswith("/inventory"):
+        service = "product-service"
+    elif path.startswith("/cart"):
+        service = "cart-service"
+    elif path.startswith("/orders"):
+        service = "order-service"
+    elif path.startswith("/payments"):
+        service = "payment-service"
+
+    try:
+        response = await call_next(request)
+        latency_ms = (time.time() - start_time) * 1000.0
+        status_code = response.status_code
+
+        # Record metrics in sliding telemetry window
+        metrics_tracker.record(request.method, path, status_code, latency_ms, service)
+
+        # Evaluate alarms on request completion
+        telemetry = metrics_tracker.get_telemetry()
+        alarm_manager.evaluate(telemetry)
+
+        # Log level mapping
+        level = "INFO"
+        if status_code >= 500:
+            level = "ERROR"
+        elif status_code >= 400:
+            level = "WARN"
+
+        # Suppress routine high-frequency observability polling from polluting log buffer
+        is_telemetry_poll = path.startswith("/observability") or path == "/health"
+        if not is_telemetry_poll or level in ("WARN", "ERROR"):
+            log_store.add(
+                service=service,
+                level=level,
+                category="HTTP_REQUEST",
+                message=f"{request.method} {path} -> {status_code} ({latency_ms:.1f}ms)",
+                path=path,
+                status_code=status_code,
+                latency_ms=latency_ms,
+                correlation_id=correlation_id,
+            )
+
+        return response
+    except Exception as exc:
+        latency_ms = (time.time() - start_time) * 1000.0
+        metrics_tracker.record(request.method, path, 500, latency_ms, service)
+        log_store.add(
+            service=service,
+            level="CRITICAL",
+            category="EXCEPTION",
+            message=f"Unhandled exception during {request.method} {path}: {str(exc)}",
+            path=path,
+            status_code=500,
+            latency_ms=latency_ms,
+            correlation_id=correlation_id,
+            details={"error": str(exc)},
+        )
+        alarm_manager.evaluate(metrics_tracker.get_telemetry())
+        raise
+
+
+# ==============================================================================
 # Endpoints & Reverse Proxy Handler
 # ==============================================================================
 
@@ -120,6 +198,10 @@ def root(request: Request):
             "privacy": "/privacy",
             "termination_protection": "/health/termination-protection",
             "crossplane_drift": "/health/crossplane-drift",
+            "observability_overview": "/observability/overview",
+            "observability_logs": "/observability/logs",
+            "observability_alarms": "/observability/alarms",
+            "observability_metrics": "/observability/metrics",
         },
     })
 
@@ -215,6 +297,99 @@ async def check_termination_protection() -> dict:
             "graceful_sigterm_drain": True,
         }
     }
+
+
+# ==============================================================================
+# Observability, Structured Logging & Anomaly Alarms Endpoints
+# ==============================================================================
+
+@app.get("/observability/overview")
+async def get_observability_overview() -> dict:
+    """Comprehensive observability dashboard payload combining telemetry, active alarms, and recent logs."""
+    telemetry = metrics_tracker.get_telemetry()
+    alarm_manager.evaluate(telemetry)
+    alarms = alarm_manager.get_summary()
+    recent_logs = log_store.query(limit=50)
+    return {
+        "status": "UP",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "telemetry": telemetry,
+        "alarms": alarms,
+        "recent_logs": recent_logs,
+    }
+
+
+@app.get("/observability/logs")
+def get_observability_logs(
+    service: Optional[str] = Query(default=None),
+    level: Optional[str] = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    search: Optional[str] = Query(default=None),
+    since_id: Optional[str] = Query(default=None),
+) -> dict:
+    """Query centralized structured logs with service, level, and keyword filters."""
+    logs = log_store.query(service=service, level=level, limit=limit, search=search, since_id=since_id)
+    return {
+        "count": len(logs),
+        "limit": limit,
+        "filters": {"service": service, "level": level, "search": search},
+        "logs": logs,
+    }
+
+
+@app.post("/observability/logs", status_code=201)
+async def post_observability_log(request: Request) -> dict:
+    """Publish a structured log record into the centralized ring buffer."""
+    payload = await request.json()
+    service = payload.get("service", "external-service")
+    level = payload.get("level", "INFO")
+    category = payload.get("category", "EXTERNAL")
+    message = payload.get("message", "No message provided")
+    path = payload.get("path")
+    status_code = payload.get("status_code")
+    latency_ms = payload.get("latency_ms")
+    correlation_id = payload.get("correlation_id")
+    details = payload.get("details")
+
+    entry = log_store.add(
+        service=service,
+        level=level,
+        category=category,
+        message=message,
+        path=path,
+        status_code=status_code,
+        latency_ms=latency_ms,
+        correlation_id=correlation_id,
+        details=details,
+    )
+    return {"status": "RECORDED", "entry": entry}
+
+
+@app.get("/observability/metrics")
+def get_observability_metrics() -> dict:
+    """Real-time request throughput, failure rates, and P95 latency metrics."""
+    return metrics_tracker.get_telemetry()
+
+
+@app.get("/observability/alarms")
+def get_observability_alarms() -> dict:
+    """Evaluate and retrieve anomaly detection alarms, trigger thresholds, and rule catalog."""
+    telemetry = metrics_tracker.get_telemetry()
+    alarm_manager.evaluate(telemetry)
+    return alarm_manager.get_summary()
+
+
+@app.post("/observability/alarms/simulate")
+async def simulate_observability_alarm(request: Request) -> dict:
+    """Simulate a failure spike, latency spike, traffic surge, or drop anomaly for testing."""
+    payload = await request.json()
+    alarm_type = payload.get("alarm_type", "FAILURE_RATE_SPIKE")
+    action = payload.get("action", "trigger")
+    try:
+        result = alarm_manager.simulate(alarm_type=alarm_type, action=action)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 
