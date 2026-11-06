@@ -1004,10 +1004,13 @@ PORTAL_HTML = """<!DOCTYPE html>
         <span style="letter-spacing: -0.03em; font-weight: 850;">E-Commerce <span style="color: #00d4ff; font-weight: 700;">Site</span></span>
       </a>
 
-      <!-- Search Bar -->
-      <div class="search-box" id="searchBoxWrapper">
+      <!-- Search Bar with Live Instant Autocomplete Dropdown -->
+      <div class="search-box" id="searchBoxWrapper" style="position: relative;">
         <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" placeholder="Search laptops, phones, accessories..." oninput="applyFiltersAndSort()">
+        <input type="text" id="searchInput" placeholder="Search laptops, phones, accessories..." oninput="handleSearchInput(event)" onfocus="handleSearchInput(event)" autocomplete="off">
+        <div id="searchAutocompleteDropdown" style="display: none; position: absolute; top: calc(100% + 8px); left: 0; width: 100%; min-width: 360px; background: rgba(5, 12, 28, 0.96); border: 1.5px solid rgba(0, 212, 255, 0.4); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,0.65); backdrop-filter: blur(20px); z-index: 1000; overflow: hidden; max-height: 420px; overflow-y: auto;">
+          <!-- Rendered dynamically via JS -->
+        </div>
       </div>
 
       <!-- Action Buttons -->
@@ -1354,58 +1357,87 @@ PORTAL_HTML = """<!DOCTYPE html>
 
         <!-- Centralized Live Observability & Structured Logs Terminal -->
         <div class="admin-card" style="grid-column: 1 / -1;">
-          <h3 style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-            <span>📡 Microservices Observability & Live Logs Terminal</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span style="font-size: 1.15rem; font-weight: 800;">📡 Microservices Observability & Traces</span>
+              <!-- Tab Switcher -->
+              <div style="display: flex; background: rgba(0,0,0,0.4); border: 1px solid var(--card-border); border-radius: 6px; padding: 2px;">
+                <button id="obsTabLogsBtn" onclick="switchObsTab('logs')" style="background: rgba(0, 212, 255, 0.15); color: #00f0ff; border: none; padding: 0.25rem 0.65rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+                  📜 Live Logs
+                </button>
+                <button id="obsTabTracesBtn" onclick="switchObsTab('traces')" style="background: transparent; color: #94a3b8; border: none; padding: 0.25rem 0.65rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; cursor: pointer;">
+                  ⚡ Distributed Traces (OTel)
+                </button>
+              </div>
+            </div>
             <div style="display: flex; gap: 0.75rem; align-items: center; font-size: 0.8rem; flex-wrap: wrap;">
               <span style="color: #94a3b8;">Throughput: <strong id="obsThroughputLabel" style="color: #00f0ff;">0 req/min</strong></span>
               <span style="color: #94a3b8;">Failure Rate: <strong id="obsFailureRateLabel" style="color: #10b981;">0.0%</strong></span>
               <span style="color: #94a3b8;">P95 Latency: <strong id="obsP95Label" style="color: #fbbf24;">0ms</strong></span>
               <span style="color: #94a3b8;">Alarms: <strong id="obsActiveAlarmsCount" style="color: #10b981;">0 Active</strong></span>
             </div>
-          </h3>
+          </div>
 
-          <!-- Toolbar: Filters, Search & Auto-Refresh -->
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; background: rgba(0,0,0,0.3); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--card-border);">
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <label style="font-size: 0.78rem; color: #94a3b8; font-weight: 600;">Service:</label>
-              <select id="logFilterService" onchange="fetchObservabilityLogs()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.78rem; font-family: var(--font-mono);">
-                <option value="all">All Services (6 Tiers)</option>
-                <option value="api-gateway">api-gateway</option>
-                <option value="user-auth-service">user-auth-service</option>
-                <option value="product-service">product-service</option>
-                <option value="cart-service">cart-service</option>
-                <option value="order-service">order-service</option>
-                <option value="payment-service">payment-service</option>
-              </select>
+          <!-- VIEW A: Structured Logs View -->
+          <div id="obsLogsView">
+            <!-- Toolbar: Filters, Search & Auto-Refresh -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.75rem; background: rgba(0,0,0,0.3); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--card-border);">
+              <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <label style="font-size: 0.78rem; color: #94a3b8; font-weight: 600;">Service:</label>
+                <select id="logFilterService" onchange="fetchObservabilityLogs()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.78rem; font-family: var(--font-mono);">
+                  <option value="all">All Services (6 Tiers)</option>
+                  <option value="api-gateway">api-gateway</option>
+                  <option value="user-auth-service">user-auth-service</option>
+                  <option value="product-service">product-service</option>
+                  <option value="cart-service">cart-service</option>
+                  <option value="order-service">order-service</option>
+                  <option value="payment-service">payment-service</option>
+                </select>
 
-              <label style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; margin-left: 0.3rem;">Level:</label>
-              <select id="logFilterLevel" onchange="fetchObservabilityLogs()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.78rem; font-family: var(--font-mono);">
-                <option value="">All Levels</option>
-                <option value="INFO">INFO & Above</option>
-                <option value="WARN">WARN & ERROR</option>
-                <option value="ERROR">ERROR Only</option>
-                <option value="CRITICAL">CRITICAL Only</option>
-              </select>
+                <label style="font-size: 0.78rem; color: #94a3b8; font-weight: 600; margin-left: 0.3rem;">Level:</label>
+                <select id="logFilterLevel" onchange="fetchObservabilityLogs()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.5rem; font-size: 0.78rem; font-family: var(--font-mono);">
+                  <option value="">All Levels</option>
+                  <option value="INFO">INFO & Above</option>
+                  <option value="WARN">WARN & ERROR</option>
+                  <option value="ERROR">ERROR Only</option>
+                  <option value="CRITICAL">CRITICAL Only</option>
+                </select>
 
-              <input type="text" id="logSearchInput" placeholder="Filter logs (e.g. /products, 500, JWT)..." oninput="debounceLogSearch()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.78rem; width: 220px; font-family: var(--font-mono);">
+                <input type="text" id="logSearchInput" placeholder="Filter logs (e.g. /products, 500, JWT)..." oninput="debounceLogSearch()" style="background: var(--input-bg); color: var(--text); border: 1px solid var(--card-border); border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.78rem; width: 220px; font-family: var(--font-mono);">
+              </div>
+
+              <div style="display: flex; gap: 0.4rem; align-items: center;">
+                <button class="btn-sm" id="btnToggleLogAuto" onclick="toggleLogAutoRefresh()" style="background: rgba(0, 240, 255, 0.12); color: #00f0ff; border: 1px solid rgba(0, 240, 255, 0.35); padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
+                  ⏸️ Auto-Refresh (3s)
+                </button>
+                <button class="btn-sm" onclick="fetchObservabilityLogs()" style="background: var(--primary); color: #000; font-weight: 700; padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
+                  🔄 Refresh Now
+                </button>
+                <button class="btn-sm" onclick="clearLogTerminalView()" style="background: rgba(255, 255, 255, 0.08); color: #cbd5e1; border: 1px solid var(--card-border); padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
+                  🗑️ Clear
+                </button>
+              </div>
             </div>
 
-            <div style="display: flex; gap: 0.4rem; align-items: center;">
-              <button class="btn-sm" id="btnToggleLogAuto" onclick="toggleLogAutoRefresh()" style="background: rgba(0, 240, 255, 0.12); color: #00f0ff; border: 1px solid rgba(0, 240, 255, 0.35); padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
-                ⏸️ Auto-Refresh (3s)
-              </button>
-              <button class="btn-sm" onclick="fetchObservabilityLogs()" style="background: var(--primary); color: #000; font-weight: 700; padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
-                🔄 Refresh Now
-              </button>
-              <button class="btn-sm" onclick="clearLogTerminalView()" style="background: rgba(255, 255, 255, 0.08); color: #cbd5e1; border: 1px solid var(--card-border); padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
-                🗑️ Clear
-              </button>
+            <!-- Live Log Terminal Output -->
+            <div id="liveLogTerminal" style="height: 320px; overflow-y: auto; background: #020713; border: 1px solid rgba(0, 212, 255, 0.22); border-radius: 8px; padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.65; color: #e2e8f0; box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);">
+              <!-- Logs rendered dynamically via JS -->
             </div>
           </div>
 
-          <!-- Live Log Terminal Output -->
-          <div id="liveLogTerminal" style="height: 320px; overflow-y: auto; background: #020713; border: 1px solid rgba(0, 212, 255, 0.22); border-radius: 8px; padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.65; color: #e2e8f0; box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);">
-            <!-- Logs rendered dynamically via JS -->
+          <!-- VIEW B: Distributed Tracing & Waterfall View -->
+          <div id="obsTracesView" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; background: rgba(0,0,0,0.3); padding: 0.6rem 0.85rem; border-radius: 8px; border: 1px solid var(--card-border);">
+              <span style="font-size: 0.8rem; color: #94a3b8;">
+                Real-time distributed waterfall tracing tracking latency across Gateway, Auth, Catalog, Cart, Order, and Database hops.
+              </span>
+              <button class="btn-sm" onclick="fetchObservabilityTraces()" style="background: var(--primary); color: #000; font-weight: 700; padding: 0.3rem 0.65rem; font-size: 0.78rem; cursor: pointer;">
+                🔄 Refresh Traces
+              </button>
+            </div>
+            <div id="liveTracesTerminal" style="height: 320px; overflow-y: auto; background: #020713; border: 1px solid rgba(0, 212, 255, 0.22); border-radius: 8px; padding: 0.75rem 1rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.65; color: #e2e8f0; box-shadow: inset 0 2px 8px rgba(0,0,0,0.6);">
+              <!-- Traces rendered dynamically via JS -->
+            </div>
           </div>
         </div>
 
@@ -2129,10 +2161,40 @@ PORTAL_HTML = """<!DOCTYPE html>
 
   <!-- Order Receipt Modal -->
   <div class="modal-overlay" id="orderModal">
-    <div class="modal-box" style="text-align: center;">
+    <div class="modal-box" style="text-align: center; max-width: 580px;">
       <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🎉</div>
-      <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.5rem;">Order Confirmed!</h2>
-      <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">Your order has been placed and payment verified successfully.</p>
+      <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.3rem;">Order Confirmed & Payment Verified!</h2>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1.25rem;">Real-time automated fulfillment triggered with 256-bit encrypted audit trail.</p>
+
+      <!-- Interactive Real-Time Cyberpunk Order Tracking Stepper -->
+      <div style="position: relative; margin-bottom: 1.5rem; padding: 0.75rem 0.5rem; background: rgba(0, 212, 255, 0.04); border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 12px;">
+        <div style="position: absolute; top: 32px; left: 12%; right: 12%; height: 3px; background: rgba(255,255,255,0.08); z-index: 1;">
+          <div style="width: 50%; height: 100%; background: linear-gradient(90deg, #10b981, #00d4ff); box-shadow: 0 0 10px #00d4ff;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #000; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; box-shadow: 0 0 12px #10b981;">✓</div>
+            <span style="font-size: 0.7rem; font-weight: 700; color: #10b981;">Confirmed</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: #00d4ff; color: #000; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; box-shadow: 0 0 12px #00d4ff;">💳</div>
+            <span style="font-size: 0.7rem; font-weight: 700; color: #00d4ff;">Paid</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(245, 158, 11, 0.2); border: 2px solid #f59e0b; color: #fbbf24; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 900; animation: pulseCyan 2s infinite;">✈️</div>
+            <span style="font-size: 0.7rem; font-weight: 700; color: #fbbf24;">Dispatched</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.2); color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">🚚</div>
+            <span style="font-size: 0.7rem; font-weight: 600; color: #94a3b8;">Out for Delivery</span>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 0.3rem;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.2); color: #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">📦</div>
+            <span style="font-size: 0.7rem; font-weight: 600; color: #94a3b8;">Delivered</span>
+          </div>
+        </div>
+      </div>
+
       <div id="receiptContent" style="background: var(--input-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; text-align: left; font-family: var(--font-mono); font-size: 0.85rem;"></div>
       <button class="checkout-btn" onclick="closeOrderModal()">Continue Shopping</button>
     </div>
@@ -2568,6 +2630,149 @@ PORTAL_HTML = """<!DOCTYPE html>
         console.error('Error triggering simulated alarm:', err);
       }
     }
+
+    let currentObsTab = 'logs';
+
+    function switchObsTab(tab) {
+      currentObsTab = tab;
+      const tabLogsBtn = document.getElementById('obsTabLogsBtn');
+      const tabTracesBtn = document.getElementById('obsTabTracesBtn');
+      const logsView = document.getElementById('obsLogsView');
+      const tracesView = document.getElementById('obsTracesView');
+
+      if (tab === 'traces') {
+        if (tabLogsBtn) { tabLogsBtn.style.background = 'transparent'; tabLogsBtn.style.color = '#94a3b8'; }
+        if (tabTracesBtn) { tabTracesBtn.style.background = 'rgba(0, 212, 255, 0.15)'; tabTracesBtn.style.color = '#00f0ff'; }
+        if (logsView) logsView.style.display = 'none';
+        if (tracesView) tracesView.style.display = 'block';
+        fetchObservabilityTraces();
+      } else {
+        if (tabLogsBtn) { tabLogsBtn.style.background = 'rgba(0, 212, 255, 0.15)'; tabLogsBtn.style.color = '#00f0ff'; }
+        if (tabTracesBtn) { tabTracesBtn.style.background = 'transparent'; tabTracesBtn.style.color = '#94a3b8'; }
+        if (logsView) logsView.style.display = 'block';
+        if (tracesView) tracesView.style.display = 'none';
+        fetchObservabilityLogs();
+      }
+    }
+
+    async function fetchObservabilityTraces() {
+      try {
+        const res = await fetch('/observability/traces?limit=15');
+        if (!res.ok) return;
+        const data = await res.json();
+        const traces = data.traces || [];
+        const container = document.getElementById('liveTracesTerminal');
+        if (!container) return;
+
+        if (traces.length === 0) {
+          container.innerHTML = '<div style="color: #64748b; font-style: italic; padding: 0.5rem 0;">No distributed traces recorded yet. Execute API or portal actions to record spans.</div>';
+          return;
+        }
+
+        container.innerHTML = traces.map(t => {
+          const statusColor = t.status_code >= 400 ? '#ef4444' : '#10b981';
+          const maxMs = Math.max(t.total_duration_ms || 1, 10);
+          return `
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(0,212,255,0.15); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.65rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-weight: 800; color: #ffffff;">${t.root_operation || 'HTTP Request'}</span>
+                  <span style="background: rgba(255,255,255,0.06); color: ${statusColor}; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700;">${t.status_code}</span>
+                  <span style="color: #94a3b8; font-size: 0.72rem; font-family: var(--font-mono);">Trace: ${t.trace_id.substring(0, 10)}...</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="color: #00f0ff; font-weight: 700;">${t.total_duration_ms}ms</span>
+                  <span style="color: #64748b; font-size: 0.72rem;">${(t.spans || []).length} Spans</span>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 0.35rem; padding-left: 0.5rem; border-left: 2px solid rgba(0,212,255,0.3);">
+                ${(t.spans || []).map(s => {
+                  const pct = Math.min(100, Math.max(15, (s.duration_ms / maxMs) * 100));
+                  return `
+                    <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;">
+                      <span style="width: 120px; color: #38bdf8; font-weight: 600;">${s.service}</span>
+                      <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden;">
+                        <div style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, #00d4ff, #10b981); border-radius: 3px;"></div>
+                      </div>
+                      <span style="min-width: 55px; text-align: right; color: #94a3b8;">${s.duration_ms}ms</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error fetching distributed traces:', err);
+      }
+    }
+
+    function handleSearchInput(e) {
+      applyFiltersAndSort();
+      const q = (e.target.value || '').trim().toLowerCase();
+      const dropdown = document.getElementById('searchAutocompleteDropdown');
+      if (!dropdown) return;
+
+      if (q.length < 2) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      const matches = allProducts.filter(p => 
+        (p.name && p.name.toLowerCase().includes(q)) || 
+        (p.sku && p.sku.toLowerCase().includes(q)) || 
+        (p.category && p.category.toLowerCase().includes(q))
+      ).slice(0, 5);
+
+      if (matches.length === 0) {
+        dropdown.innerHTML = `
+          <div style="padding: 1rem; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+            No products matching "${q}"
+          </div>
+        `;
+        dropdown.style.display = 'block';
+        return;
+      }
+
+      dropdown.innerHTML = `
+        <div style="padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--card-border); font-size: 0.72rem; color: #00d4ff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between;">
+          <span>Instant Product Matches</span>
+          <span>${matches.length} Results</span>
+        </div>
+        ${matches.map(p => {
+          const icon = ICONS[p.sku.split('-')[0]] || '📦';
+          const imgHtml = p.imageUrl 
+            ? `<img src="${p.imageUrl}" alt="${p.name}" style="width: 38px; height: 38px; object-fit: contain; border-radius: 6px; background: rgba(255,255,255,0.04); flex-shrink: 0;">` 
+            : `<span style="font-size: 1.5rem; flex-shrink: 0;">${icon}</span>`;
+          return `
+            <div onclick="openProductModal('${p.id}'); document.getElementById('searchAutocompleteDropdown').style.display='none';" style="display: flex; gap: 0.75rem; align-items: center; padding: 0.6rem 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(0, 212, 255, 0.08)'" onmouseout="this.style.background='transparent'">
+              ${imgHtml}
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</div>
+                <div style="display: flex; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); align-items: center;">
+                  <span style="color: #38bdf8; font-weight: 600;">₹${Number(p.price).toLocaleString('en-IN')}</span>
+                  <span>•</span>
+                  <span>${p.sku}</span>
+                </div>
+              </div>
+              <button onclick="event.stopPropagation(); addToCart('${p.id}'); document.getElementById('searchAutocompleteDropdown').style.display='none';" class="btn-sm" style="background: var(--primary); color: #000; font-weight: 800; font-size: 0.72rem; padding: 0.25rem 0.5rem; border-radius: 4px; white-space: nowrap;">
+                + Cart
+              </button>
+            </div>
+          `;
+        }).join('')}
+      `;
+      dropdown.style.display = 'block';
+    }
+
+    // Close autocomplete on click outside
+    document.addEventListener('click', (e) => {
+      const searchBox = document.getElementById('searchBoxWrapper');
+      const dropdown = document.getElementById('searchAutocompleteDropdown');
+      if (searchBox && dropdown && !searchBox.contains(e.target)) {
+        dropdown.style.display = 'none';
+      }
+    });
 
 
     async function unlockAdminWithPassword(e) {

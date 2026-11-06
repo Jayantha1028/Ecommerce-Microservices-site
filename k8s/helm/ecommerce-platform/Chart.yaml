@@ -1,0 +1,15 @@
+apiVersion: v2
+name: ecommerce-platform
+description: Enterprise Production Helm Chart for E-Commerce Microservices & Data Layer
+type: application
+version: 1.0.0
+appVersion: "2.1.0"
+keywords:
+  - ecommerce
+  - microservices
+  - kubernetes
+  - fastapi
+  - zero-trust
+maintainers:
+  - name: Jay
+    email: admin@example.com

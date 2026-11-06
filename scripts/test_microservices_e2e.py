@@ -204,6 +204,25 @@ def run_suite() -> int:
         "Simulated 5XX Spike -> Fired Alarm -> Reset to Healthy",
     )
 
+    # Perimeter Rate Limiting & Distributed Tracing
+    status, traces_res = request_json("GET", "/observability/traces", expected_status=200)
+    log_test(
+        "OpenTelemetry Distributed Tracing & Spans",
+        status == 200 and isinstance(traces_res.get("traces"), list) and traces_res.get("count", 0) > 0,
+        f"Recorded Traces: {traces_res.get('count')}",
+    )
+    status, webhook_res = request_json(
+        "POST",
+        "/observability/webhooks/test",
+        payload={"title": "Automated CI Test", "severity": "INFO", "details": {"source": "e2e_runner"}},
+        expected_status=200,
+    )
+    log_test(
+        "Ops Webhook Alert Dispatch Pipeline",
+        status == 200 and webhook_res.get("status") == "DISPATCHED",
+        f"Dispatch Status: {webhook_res.get('record', {}).get('status')}",
+    )
+
     # -----------------------------------------------------------------
     # TEST GROUP 2: Existing Data Preservation (LAPTOP-001)
     # -----------------------------------------------------------------
@@ -526,6 +545,19 @@ def run_suite() -> int:
             expected_status={200, 400, 502},
         )
         log_test("Payment Verification Handler Executed", status in {200, 400, 502}, f"Status: HTTP {status}")
+
+        # Test Distributed Saga Compensating Transaction
+        status, saga_res = request_json(
+            "POST",
+            f"/orders/{order_id}/saga/compensate",
+            token=customer_token,
+            expected_status=200,
+        )
+        log_test(
+            "Distributed Saga Compensating Transaction",
+            status == 200 and saga_res.get("current_status") == "CANCELLED_SAGA_COMPENSATED",
+            f"Saga ID: {saga_res.get('saga_id')} | Steps: {len(saga_res.get('compensation_steps', []))}",
+        )
 
     # -----------------------------------------------------------------
     # TEST GROUP 9: Advanced E-Commerce Capabilities (Search, Filters, Coupons, Reviews)

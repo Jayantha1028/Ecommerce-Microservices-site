@@ -1,0 +1,81 @@
+# Default values for ecommerce-platform Helm Chart.
+
+global:
+  environment: production
+  jwtSecret: "super-secret-production-jwt-key-minimum-32-chars-long"
+  domain: "ecommerce.internal"
+
+apiGateway:
+  replicaCount: 2
+  image:
+    repository: ecommerce/api-gateway
+    tag: "2.1.0"
+    pullPolicy: IfNotPresent
+  port: 8000
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+    targetMemoryUtilizationPercentage: 80
+
+microservices:
+  authService:
+    replicaCount: 2
+    port: 8001
+    dbHost: "auth-db"
+  productService:
+    replicaCount: 3
+    port: 8002
+    dbHost: "product-db"
+    redisHost: "redis"
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 8
+      targetCPUUtilizationPercentage: 70
+  paymentService:
+    replicaCount: 2
+    port: 8003
+    dbHost: "payment-db"
+  orderService:
+    replicaCount: 2
+    port: 8004
+    dbHost: "order-db"
+  cartService:
+    replicaCount: 2
+    port: 8005
+    dbHost: "cart-db"
+
+databases:
+  postgresVersion: "16-alpine"
+  storageSize: "10Gi"
+  storageClass: "standard"
+
+networkPolicies:
+  enabled: true
+  enforceZeroTrust: true
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+  hosts:
+    - host: "store.ecommerce.internal"
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: ecommerce-tls-cert
+      hosts:
+        - "store.ecommerce.internal"

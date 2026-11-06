@@ -1,0 +1,126 @@
+{{- if .Values.networkPolicies.enabled }}
+# Zero-Trust Database Network Isolation Policy
+# Enforces that each PostgreSQL database instance only accepts traffic from its specific authorized microservice.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-product-db
+  labels:
+    {{- include "ecommerce-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: product-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: product-service
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-auth-db
+  labels:
+    {{- include "ecommerce-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: auth-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: user-auth-service
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-order-db
+  labels:
+    {{- include "ecommerce-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: order-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: order-service
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-cart-db
+  labels:
+    {{- include "ecommerce-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: cart-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: cart-service
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-payment-db
+  labels:
+    {{- include "ecommerce-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: payment-db
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: payment-service
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Perimeter Protection Policy: Only API Gateway is reachable from Ingress / Public internet
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-gateway-ingress-boundary
+  labels:
+    {{- include "ecommerce-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app: api-gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8000
+{{- end }}

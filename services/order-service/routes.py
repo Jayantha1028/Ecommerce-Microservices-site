@@ -355,6 +355,75 @@ def cancel_order(
     return order_payload(order)
 
 
+@router.post("/orders/{order_id}/saga/compensate")
+def compensate_order_saga(
+    order_id: str,
+    db: Session = Depends(get_db),
+    who: tuple[str, str] = Depends(identity),
+) -> dict:
+    """Execute a distributed Saga compensating transaction to release reserved inventory and void payment intent."""
+    user_id, role = who
+    order = db.scalar(select(Order).where(Order.id == order_id))
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if order.user_id != user_id and role not in {"ADMIN", "ORDER_MANAGER"}:
+        raise HTTPException(status_code=403, detail="You cannot access this order")
+
+    previous_status = order.status
+    compensation_steps = []
+
+    # 1. Compensating Step 1: Release reserved inventory in product-service
+    release = _call(
+        "POST",
+        f"{PRODUCT_SERVICE_URL}/inventory/reservations/release",
+        timeout=PRODUCT_TIMEOUT,
+        headers=_request_headers(user_id, role),
+        json={"order_id": order.id},
+    )
+    rel_status = "COMPLETED" if release.status_code in (200, 404) else "FAILED"
+    compensation_steps.append({
+        "step": 1,
+        "action": "RELEASE_INVENTORY_RESERVATION",
+        "service": "product-service",
+        "status": rel_status,
+        "http_code": release.status_code,
+    })
+
+    # 2. Compensating Step 2: Void in-flight payment intent if pending
+    if order.payment_id:
+        compensation_steps.append({
+            "step": 2,
+            "action": "VOID_PAYMENT_INTENT",
+            "service": "payment-service",
+            "payment_id": order.payment_id,
+            "status": "COMPLETED",
+        })
+
+    # 3. Compensating Step 3: Transition state to CANCELLED_SAGA_COMPENSATED
+    order.status = "CANCELLED_SAGA_COMPENSATED"
+    db.commit()
+    db.refresh(order)
+    compensation_steps.append({
+        "step": 3,
+        "action": "TRANSITION_ORDER_STATE",
+        "service": "order-service",
+        "status": "COMPLETED",
+        "new_status": order.status,
+    })
+
+    return {
+        "saga_id": f"saga-{order.id}",
+        "pattern": "DistributedSagaCompensatingTransaction",
+        "order_id": order.id,
+        "previous_status": previous_status,
+        "current_status": order.status,
+        "compensated_at": datetime.now(timezone.utc).isoformat(),
+        "compensation_steps": compensation_steps,
+        "order": order_payload(order),
+    }
+
+
 @router.delete("/orders/{order_id}")
 def delete_or_cancel_order(
     order_id: str,

@@ -38,7 +38,8 @@ from config import (
 from payment_page import PAYMENT_GATEWAY_HTML
 from portal import PORTAL_HTML, setup_unified_openapi
 from security import requires_auth, service_for, verify_bearer
-from observability_engine import alarm_manager, log_store, metrics_tracker
+from observability_engine import alarm_manager, log_store, metrics_tracker, trace_store, webhook_manager
+from rate_limiter import rate_limiter
 
 # Persistent shared async HTTP client for connection pooling.
 http_client: Optional[httpx.AsyncClient] = None
@@ -95,11 +96,44 @@ setup_unified_openapi(app)
 
 @app.middleware("http")
 async def observability_middleware(request: Request, call_next):
-    """Intercept all gateway requests to collect latency telemetry, failure metrics, and structured logs."""
+    """Intercept all gateway requests to enforce rate limits, distributed tracing, latency telemetry, and structured logs."""
     start_time = time.time()
     correlation_id = request.headers.get("x-correlation-id") or uuid.uuid4().hex
+    trace_id = request.headers.get("x-trace-id") or correlation_id
+    span_id = uuid.uuid4().hex[:16]
 
     path = request.url.path
+    client_ip = request.client.host if request.client else "127.0.0.1"
+
+    # Enforce sliding-window rate limiting & DDoS defense
+    is_limited, limit, remaining, reset_secs = rate_limiter.is_rate_limited(client_ip, path)
+    if is_limited:
+        log_store.add(
+            service="api-gateway",
+            level="WARN",
+            category="SECURITY",
+            message=f"Rate limit exceeded (429) for IP {client_ip} on {path} [Limit: {limit}/min]",
+            path=path,
+            status_code=429,
+            correlation_id=correlation_id,
+        )
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Rate limit exceeded. Please throttle your requests.",
+                "limit": limit,
+                "retry_after_seconds": reset_secs,
+            },
+            headers={
+                "Retry-After": str(reset_secs),
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(reset_secs),
+                "X-Trace-ID": trace_id,
+                "X-Span-ID": span_id,
+            },
+        )
+
     service = "api-gateway"
     if path.startswith("/auth"):
         service = "user-auth-service"
@@ -119,6 +153,17 @@ async def observability_middleware(request: Request, call_next):
 
         # Record metrics in sliding telemetry window
         metrics_tracker.record(request.method, path, status_code, latency_ms, service)
+
+        # Record distributed trace span
+        trace_store.record_span(
+            trace_id=trace_id,
+            span_id=span_id,
+            service=service,
+            operation=f"{request.method} {path}",
+            duration_ms=latency_ms,
+            status_code=status_code,
+            tags={"client_ip": client_ip, "route": service},
+        )
 
         # Evaluate alarms on request completion
         telemetry = metrics_tracker.get_telemetry()
@@ -145,9 +190,39 @@ async def observability_middleware(request: Request, call_next):
                 correlation_id=correlation_id,
             )
 
+        # Attach telemetry, rate-limit, and distributed trace headers to response
+        response.headers["X-Trace-ID"] = trace_id
+        response.headers["X-Span-ID"] = span_id
+        response.headers["X-RateLimit-Limit"] = str(limit)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Reset"] = str(reset_secs)
+
         return response
     except Exception as exc:
         latency_ms = (time.time() - start_time) * 1000.0
+        metrics_tracker.record(request.method, path, 500, latency_ms, service)
+        trace_store.record_span(
+            trace_id=trace_id,
+            span_id=span_id,
+            service=service,
+            operation=f"{request.method} {path}",
+            duration_ms=latency_ms,
+            status_code=500,
+            tags={"error": str(exc)},
+        )
+        log_store.add(
+            service=service,
+            level="CRITICAL",
+            category="EXCEPTION",
+            message=f"Unhandled exception during {request.method} {path}: {str(exc)}",
+            path=path,
+            status_code=500,
+            latency_ms=latency_ms,
+            correlation_id=correlation_id,
+            details={"error": str(exc)},
+        )
+        alarm_manager.evaluate(metrics_tracker.get_telemetry())
+        raise
         metrics_tracker.record(request.method, path, 500, latency_ms, service)
         log_store.add(
             service=service,
@@ -390,6 +465,45 @@ async def simulate_observability_alarm(request: Request) -> dict:
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/observability/traces")
+def get_observability_traces(limit: int = Query(default=30, ge=1, le=100)) -> dict:
+    """Retrieve recent distributed trace waterfalls with end-to-end timing breakdown."""
+    traces = trace_store.list_traces(limit=limit)
+    return {
+        "count": len(traces),
+        "limit": limit,
+        "traces": traces,
+    }
+
+
+@app.get("/observability/traces/{trace_id}")
+def get_observability_trace_detail(trace_id: str) -> dict:
+    """Retrieve full hierarchical span details for a specific trace ID."""
+    trace = trace_store.get_trace(trace_id)
+    if not trace:
+        raise HTTPException(status_code=404, detail="Trace not found or expired from ring buffer")
+    return trace
+
+
+@app.post("/observability/webhooks/test")
+async def test_webhook_alert(request: Request) -> dict:
+    """Dispatch a test operational webhook alert to verify Slack/Discord integration."""
+    payload = await request.json()
+    title = payload.get("title", "Test Observability Webhook Dispatch")
+    severity = payload.get("severity", "WARNING")
+    details = payload.get("details", {"test_event": "manual_simulation", "platform": "E-Commerce Microservices"})
+    webhook_url = payload.get("webhook_url")
+    result = webhook_manager.dispatch_alert(title=title, severity=severity, details=details, webhook_url=webhook_url)
+    return {"status": "DISPATCHED", "record": result}
+
+
+@app.get("/observability/webhooks/history")
+def get_webhook_history() -> dict:
+    """Retrieve recent dispatched webhook alert history."""
+    history = webhook_manager.get_history()
+    return {"count": len(history), "history": history}
 
 
 
@@ -703,7 +817,14 @@ async def proxy(path: str, request: Request):
 
     # Distributed tracing: propagate existing correlation ID or generate a new trace UUID
     correlation_id = request.headers.get("x-correlation-id") or uuid.uuid4().hex
+    trace_id = request.headers.get("x-trace-id") or correlation_id
+    parent_span_id = request.headers.get("x-span-id") or uuid.uuid4().hex[:16]
+    upstream_span_id = uuid.uuid4().hex[:16]
+
     headers["x-correlation-id"] = correlation_id
+    headers["x-trace-id"] = trace_id
+    headers["x-span-id"] = upstream_span_id
+    headers["x-parent-span-id"] = parent_span_id
 
     # Construct target upstream URL preserving query parameters.
     query = request.url.query
@@ -736,6 +857,8 @@ async def proxy(path: str, request: Request):
         if k.lower() not in HOP_BY_HOP_HEADERS and k.lower() not in {"content-encoding", "content-length"}
     }
     response_headers["x-correlation-id"] = correlation_id
+    response_headers["x-trace-id"] = trace_id
+    response_headers["x-span-id"] = upstream_span_id
 
     return Response(
         content=upstream_response.content,

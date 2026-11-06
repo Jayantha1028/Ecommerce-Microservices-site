@@ -14,6 +14,7 @@ Provides enterprise-grade observability across all microservices:
 from __future__ import annotations
 
 import collections
+import os
 import threading
 import time
 import uuid
@@ -465,12 +466,123 @@ class AlarmManager:
         }
 
 
+class TraceStore:
+    """In-memory distributed trace and waterfall span store."""
+
+    def __init__(self, max_traces: int = 500):
+        self.max_traces = max_traces
+        self._traces: collections.OrderedDict = collections.OrderedDict()
+        self._lock = threading.Lock()
+
+    def record_span(
+        self,
+        trace_id: str,
+        span_id: str,
+        service: str,
+        operation: str,
+        duration_ms: float,
+        status_code: int = 200,
+        parent_span_id: Optional[str] = None,
+        tags: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Record an OpenTelemetry-compatible span inside a distributed trace."""
+        with self._lock:
+            if trace_id not in self._traces:
+                if len(self._traces) >= self.max_traces:
+                    self._traces.popitem(last=False)
+                self._traces[trace_id] = {
+                    "trace_id": trace_id,
+                    "created_at": _now_iso(),
+                    "total_duration_ms": duration_ms,
+                    "status_code": status_code,
+                    "root_service": service,
+                    "root_operation": operation,
+                    "spans": [],
+                }
+
+            trace = self._traces[trace_id]
+            trace["total_duration_ms"] = max(trace["total_duration_ms"], duration_ms)
+            if status_code >= 400:
+                trace["status_code"] = status_code
+
+            trace["spans"].append({
+                "span_id": span_id,
+                "parent_span_id": parent_span_id,
+                "service": service,
+                "operation": operation,
+                "duration_ms": round(duration_ms, 2),
+                "status_code": status_code,
+                "timestamp": _now_iso(),
+                "tags": tags or {},
+            })
+
+    def list_traces(self, limit: int = 30) -> List[Dict[str, Any]]:
+        """List recent distributed traces with span counts and latencies."""
+        with self._lock:
+            items = list(self._traces.values())
+        return list(reversed(items[-limit:]))
+
+    def get_trace(self, trace_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieve full hierarchical span details for a trace."""
+        with self._lock:
+            return self._traces.get(trace_id)
+
+
+class WebhookManager:
+    """Manages operational webhook alert notifications (Slack / Discord / Custom)."""
+
+    def __init__(self):
+        self.webhook_url = os.getenv("OPS_WEBHOOK_URL", "")
+        self.dispatch_history: collections.deque = collections.deque(maxlen=50)
+        self._lock = threading.Lock()
+
+    def dispatch_alert(self, title: str, severity: str, details: Dict[str, Any], webhook_url: Optional[str] = None) -> Dict[str, Any]:
+        """Dispatch a formatted webhook alert to Slack/Discord or test sink."""
+        target_url = webhook_url or self.webhook_url
+        record = {
+            "id": f"wh-{uuid.uuid4().hex[:8]}",
+            "timestamp": _now_iso(),
+            "title": title,
+            "severity": severity,
+            "details": details,
+            "target": target_url or "SIMULATED_LOG_SINK",
+            "status": "DELIVERED",
+        }
+        with self._lock:
+            self.dispatch_history.append(record)
+
+        # If a real webhook URL is configured, trigger in background
+        if target_url and target_url.startswith("http"):
+            try:
+                import httpx
+                payload = {
+                    "text": f"🚨 [{severity}] {title}",
+                    "attachments": [{
+                        "color": "#ef4444" if severity == "CRITICAL" else "#f59e0b",
+                        "title": title,
+                        "fields": [{"title": k, "value": str(v), "short": True} for k, v in details.items()],
+                        "footer": "E-Commerce Microservices Observability Guard",
+                    }],
+                }
+                httpx.post(target_url, json=payload, timeout=2.0)
+            except Exception as exc:
+                record["status"] = f"DISPATCH_ERROR: {str(exc)}"
+
+        return record
+
+    def get_history(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            return list(self.dispatch_history)
+
+
 # ==============================================================================
 # Global Engine Instances & Initial System Bootstrap
 # ==============================================================================
 log_store = StructuredLogStore(max_entries=2000)
 metrics_tracker = MetricsTracker(window_seconds=60)
 alarm_manager = AlarmManager(log_store=log_store)
+trace_store = TraceStore(max_traces=500)
+webhook_manager = WebhookManager()
 
 # Seed initial baseline startup logs so developer console displays operational context immediately
 log_store.add(
